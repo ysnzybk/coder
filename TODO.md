@@ -60,6 +60,16 @@ Stack: Laravel 12 · Filament 3 · MySQL (canlı) / SQLite (local) · Google Pla
   - **Doğrulama kapısı:** dosya kaynaklı firmalar "Doğrulama bekliyor" olur, site üretilmez; Web'de ara / Sitesi yok → onayla / Sitesi var → ele (tekil ve toplu)
   - Panelden içerik düzenleme ("İçeriği düzenle"), "Görselsiz hazırla", Ayarlar'da kota göstergeleri
 - [x] 37 otomatik test geçiyor, README (cPanel + ücretsiz yapı + Google kapak adımları)
+- [x] **API'siz çalışma turu (2026-11-22):**
+  - Rapor ekranı demo veriyle kontrol edildi; huni/kanal/gelir rakamları elle sayımla tutarlı (8 bulunan → 7 hedef → 6 site → 6 gönderilen → 4 açılan → 2 ilgili → 1 satış; MRR 1.000 ₺).
+  - **Hata bulundu ve düzeltildi:** Satışlar (Deals) ekranı kayıt varken 500 veriyordu (Filament closure parametre adı). Tüm admin sayfalarını DOLU veriyle açan duman testi eklendi (`AdminPagesTest`; hatayı yakaladığı doğrulandı).
+  - Bakım ödemeleri artık kaçan dönemleri de tamamlıyor (zamanlayıcı çalışmadığı aylar).
+  - **Güvenlik sertleştirme:** JSON-LD'de `</script>` kaçışı (XSS), CSV dışa aktarmada formül enjeksiyonu önlemi, güvenlik başlıkları (nosniff, SAMEORIGIN, Referrer-Policy, HSTS), takip/ret uçlarına hız sınırı, canlıda https bağlantılar; `SecurityTest`.
+  - `php artisan leadgen:check [--production]` (dış çağrı yapmadan canlı kontrol listesi), zamanlayıcı kalp atışı + Ayarlar'da cron göstergesi, Firmalar'da "Hatalı" sekmesi, elle düzenlenmiş içerik için yeniden üretme uyarısı.
+  - Dokümanlar: `docs/DEPLOY.md` (cPanel adım adım), `scripts/deploy.sh`, `docs/EMAIL.md` (SPF/DKIM/DMARC, ısınma).
+  - **Üretim kopyası denendi:** `composer install --no-dev`, config/route/view/event cache, migrate+seed, istekler (200/200/404) ve başlıklar sorunsuz.
+  - **Overture SQL doğrulandı (sentetik veriyle):** DuckDB ile Overture şemasına benzer örnek parquet üzerinde çalıştırıldı, CSV → `places:import-file` hattı uçtan uca denendi. Spatial eklentisi gereksiz olduğu için `bbox.xmin/ymin` kullanılıyor. **Gerçek Overture sürümüyle hâlâ denenmedi.**
+  - 46 test geçiyor.
 
 ## 5. Doğrulanmadı — canlı anahtarlarla ilk iş bunlar
 
@@ -77,9 +87,8 @@ Hiçbir dış servis gerçek anahtarla çalıştırılmadı; testler `Http::fake
 - [ ] **Places alan adları:** `places:searchText` yanıtındaki `nationalPhoneNumber`, `internationalPhoneNumber`, `websiteUri`, `businessStatus`, `reviews`, `regularOpeningHours` vb. canlı yanıtla teyit edilmeli.
 - [ ] **Places `includedType` değerleri** (`pet_store`, `hair_care`, `barber_shop`, `car_repair`, `florist`...): geçersiz tür aramayı hataya düşürebilir; her sektör için dene, gerekirse Sektörler ekranından boşalt.
 - [ ] **Overture gerçek dosyası:** `scripts/overture-export.sql` alan adları (`categories.primary`, `operating_status`, `addresses[1]`, `websites`, `socials`, `emails`, `phones`) ve `config/leadgen.php → file_import.category_map` anahtarları gerçek sürümle denenmedi. Türkiye kapsamı ve "web sitesi yok" doğruluğu ölçülmeli.
-- [ ] **cPanel dağıtımı** hiç denenmedi (document root, `storage:link`, cron, AutoSSL, Addon domain ile firma alan adı).
+- [ ] **cPanel dağıtımı** gerçek sunucuda hiç denenmedi (document root, `storage:link`, cron, AutoSSL, Addon domain ile firma alan adı). Üretim kopyası yerelde denendi, rehber `docs/DEPLOY.md`.
 - [ ] **E-posta teslim edilebilirliği:** kendi SMTP + takip pikseli spam'e düşebilir; SPF/DKIM/DMARC, küçük hacimle başlama, Gmail kullanılıyorsa uygulama şifresi ve günlük limit.
-- [ ] **Rapor ekranı** (Dashboard, widget'lar, filtreler) açılıyor ve hata vermiyor ama ekran görüntüsü incelenmedi; az veriyle doğru rakam gösterip göstermediği kontrol edilmeli.
 - [ ] **Firmalar tablosu** dar ekranda taşıyordu; bazı sütunlar varsayılan gizli, doğrulama eylemleri ikon butona çevrildi; tekrar bakılmalı.
 - [ ] **Gerçek görsellerle şablonlar:** restoran şablonu gerçek FLUX görselleriyle masaüstünde kontrol edildi ve iyi görünüyor; kuaför, oto, pet shop, genel şablonları ve mobil görünüm gerçek görselle henüz bakılmadı.
 - [ ] Google haritası embed'i sandbox'ta internet olmadığı için hiç görülemedi.
@@ -144,12 +153,12 @@ Durum (2026-11-22): Cloudflare tamam ve doğrulandı. Sıradaki iş Google Place
 7. Sonuçları bu dosyanın bölüm 5'ine işle, gerekirse `.env`/config sınırlarını (`GOOGLE_PLACES_MONTHLY_*_LIMIT`) ve `category.included_type` değerlerini düzelt, commit + push.
 
 ### C) Google'dan sonra (önerilen sıra)
-1. Kuaför, oto, pet shop, genel şablonlarını gerçek Cloudflare görselleriyle ve mobilde kontrol et (restoran tamam).
-2. Rapor ekranı (Dashboard) gerçek/demo veriyle kontrol.
+1. Kuaför, oto, pet shop, genel şablonlarını gerçek Cloudflare görselleriyle kontrol et (restoran tamam; diğerleri yer tutucu görselle masaüstü/tablet/mobil kontrol edildi, API gerektirir).
+2. ~~Rapor ekranı demo veriyle kontrol~~ yapıldı; gerçek veriyle ilk turdan sonra tekrar bak.
 3. Çok sektörlü canlı üretim kalitesi (Llama Türkçesi): 3-4 farklı sektörde metinleri oku, gerekirse prompt/sanitizer ayarla.
-4. cPanel dağıtımı (document root, `storage:link`, cron, AutoSSL, canlı `.env` gerçek Cloudflare token'ı ve Places anahtarıyla), Cloudflare/Places günlük kapakları kontrolü.
-5. SMTP + SPF/DKIM/DMARC, küçük hacimli ilk e-posta; WhatsApp elle gönderim denemesi (kendi numaranıza).
-6. Overture gerçek dosyasıyla bir deneme (`scripts/overture-export.sql`), doğrulama kapısı akışı.
+4. **cPanel'e gerçek dağıtım** (`docs/DEPLOY.md` hazır, üretim kopyası yerelde denendi): document root, `storage:link`, cron, AutoSSL, canlı `.env`; ardından `php artisan leadgen:check --production`.
+5. SMTP + SPF/DKIM/DMARC (`docs/EMAIL.md` hazır): kendi adresinize test, mail-tester.com puanı, küçük hacimli ilk gönderim; WhatsApp elle gönderim denemesi (kendi numaranıza).
+6. Overture gerçek sürümüyle bir deneme (`scripts/overture-export.sql` sentetik veride doğrulandı, gerçek alan adları/kategoriler teyit edilmeli), doğrulama kapısı akışı.
 7. İlk gerçek müşteri turu: tek ilçe, 5-10 firma, tek tek onay.
 
 ### Notlar

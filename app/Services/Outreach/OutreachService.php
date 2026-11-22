@@ -111,24 +111,30 @@ class OutreachService
         });
     }
 
-    /** Aktif satışlar için içinde bulunulan ayın bakım ödemesini oluşturur (zamanlanmış görev). */
+    /**
+     * Aktif satışlar için bakım ödemelerini oluşturur (zamanlanmış görev, günlük).
+     * Bakım, satıştan sonraki aydan başlar; zamanlayıcı çalışmadığı günler/aylar olduysa kaçan dönemler de tamamlanır.
+     */
     public function generateMaintenancePayments(): int
     {
         $created = 0;
-        $period = now()->format('Y-m');
+        $current = now()->startOfMonth();
 
-        Deal::where('status', 'active')->with('payments')->each(function (Deal $deal) use ($period, &$created) {
-            // Bakım, satıştan sonraki aydan itibaren başlar.
-            if ($deal->started_at->format('Y-m') >= $period || $deal->maintenance_price <= 0) {
+        Deal::where('status', 'active')->each(function (Deal $deal) use ($current, &$created) {
+            if ($deal->maintenance_price <= 0) {
                 return;
             }
 
-            $payment = Payment::firstOrCreate(
-                ['deal_id' => $deal->id, 'type' => 'maintenance', 'period' => $period],
-                ['amount' => $deal->maintenance_price, 'due_date' => now()->startOfMonth()->addDays(min(27, $deal->started_at->day - 1))],
-            );
+            $end = $deal->cancelled_at ? $deal->cancelled_at->copy()->startOfMonth() : $current;
 
-            $created += $payment->wasRecentlyCreated ? 1 : 0;
+            for ($month = $deal->started_at->copy()->startOfMonth()->addMonth(); $month->lte($end) && $month->lte($current); $month->addMonth()) {
+                $payment = Payment::firstOrCreate(
+                    ['deal_id' => $deal->id, 'type' => 'maintenance', 'period' => $month->format('Y-m')],
+                    ['amount' => $deal->maintenance_price, 'due_date' => $month->copy()->addDays(min(27, $deal->started_at->day - 1))],
+                );
+
+                $created += $payment->wasRecentlyCreated ? 1 : 0;
+            }
         });
 
         return $created;

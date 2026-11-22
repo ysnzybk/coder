@@ -39,6 +39,10 @@ class ListBusinesses extends ListRecords
                 ->modifyQueryUsing(fn (Builder $query) => $query->whereIn('status', [Business::STATUS_LOST, Business::STATUS_OPTED_OUT])),
             'disqualified' => Tab::make('Elenen')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', Business::STATUS_DISQUALIFIED)),
+            'failed' => Tab::make('Hatalı')
+                ->badge($count([Business::STATUS_FAILED]) ?: null)
+                ->badgeColor('danger')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', Business::STATUS_FAILED)),
             'all' => Tab::make('Tümü'),
         ];
     }

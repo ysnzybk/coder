@@ -44,7 +44,7 @@
         'image' => $images['hero'] ?? null,
         'aggregateRating' => $business->rating ? ['@type' => 'AggregateRating', 'ratingValue' => $business->rating, 'reviewCount' => $business->review_count] : null,
         'geo' => $business->lat ? ['@type' => 'GeoCoordinates', 'latitude' => $business->lat, 'longitude' => $business->lng] : null,
-    ]), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
+    ]), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) !!}</script>
 </head>
 <body class="tpl-{{ $site->template }}">
 <a class="skip" href="#icerik">İçeriğe geç</a>

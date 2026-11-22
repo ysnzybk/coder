@@ -2,6 +2,7 @@
 
 use App\Services\Outreach\OutreachService;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('payments:generate', function (OutreachService $outreach) {
@@ -15,3 +16,8 @@ Schedule::command('queue:work --stop-when-empty --max-time=55 --tries=3 --timeou
     ->withoutOverlapping(5);
 
 Schedule::command('payments:generate')->dailyAt('03:10');
+
+// Cron'un çalıştığını panelden ve `leadgen:check` ile görebilmek için kalp atışı
+Schedule::call(fn () => Cache::put('scheduler.heartbeat', now(), now()->addDay()))
+    ->everyMinute()
+    ->name('scheduler-heartbeat');

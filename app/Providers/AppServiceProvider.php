@@ -7,6 +7,7 @@ use App\Services\Ai\ClaudeContentGenerator;
 use App\Services\Ai\CloudflareContentGenerator;
 use App\Services\Ai\SiteContentGenerator;
 use App\Services\Ai\TemplateContentGenerator;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -30,6 +31,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        //
+        // Canlıda (APP_URL https) üretilen tüm bağlantılar ve varlıklar https olsun
+        if (str_starts_with((string) config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+        }
     }
 }

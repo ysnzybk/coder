@@ -240,7 +240,9 @@ class BusinessResource extends Resource
             ->icon('heroicon-o-sparkles')
             ->color('primary')
             ->requiresConfirmation()
-            ->modalDescription('AI içerik + görsel yeniden üretilir (ücretsiz kota harcar). Elle yaptığınız içerik düzenlemeleri silinir.')
+            ->modalDescription(fn (Business $r) => ($r->site?->content['_edited'] ?? false)
+                ? '⚠️ Bu sitenin içeriği elle düzenlenmiş; yeniden üretirseniz düzenlemeleriniz silinir. (Ücretsiz kota harcar.)'
+                : 'AI içerik + görsel üretilir (ücretsiz kota harcar).')
             ->visible(fn (Business $r) => self::canGenerate($r))
             ->action(function (Business $r) {
                 GenerateSiteJob::dispatch($r->id);

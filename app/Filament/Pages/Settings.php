@@ -12,6 +12,7 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Support\Facades\Cache;
 
 class Settings extends Page implements HasForms
 {
@@ -86,6 +87,10 @@ class Settings extends Page implements HasForms
                 Forms\Components\Placeholder::make('mail')->label('SMTP')
                     ->content(config('mail.default') === 'smtp' ? '✅ '.config('mail.mailers.smtp.host') : '⚠️ MAIL_MAILER='.config('mail.default').' (gerçek gönderim yok)'),
                 Forms\Components\Placeholder::make('url')->label('Site adresi (APP_URL)')->content(config('app.url')),
+                Forms\Components\Placeholder::make('cron')->label('Zamanlayıcı (cron)')
+                    ->content(fn () => ($beat = Cache::get('scheduler.heartbeat'))
+                        ? (now()->diffInMinutes($beat) < 5 ? '✅ Çalışıyor (son: '.$beat->diffForHumans().')' : '⚠️ Son çalışma '.$beat->diffForHumans().' — cron kontrol edin')
+                        : '⚠️ Henüz çalışmadı — cPanel cron: * * * * * php artisan schedule:run'),
             ]),
         ]);
     }

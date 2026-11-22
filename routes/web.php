@@ -6,9 +6,9 @@ use App\Http\Controllers\WhatsAppController;
 use Illuminate\Support\Facades\Route;
 
 // Takip: e-posta açılma pikseli, tıklama yönlendirmesi, ret (opt-out)
-Route::get('/t/o/{token}.gif', [TrackingController::class, 'open'])->name('track.open');
-Route::get('/t/c/{token}', [TrackingController::class, 'click'])->name('track.click');
-Route::get('/u/{token}', [TrackingController::class, 'optOutForm'])->name('optout.form');
+Route::get('/t/o/{token}.gif', [TrackingController::class, 'open'])->name('track.open')->middleware('throttle:240,1');
+Route::get('/t/c/{token}', [TrackingController::class, 'click'])->name('track.click')->middleware('throttle:120,1');
+Route::get('/u/{token}', [TrackingController::class, 'optOutForm'])->name('optout.form')->middleware('throttle:60,1');
 Route::post('/u/{token}', [TrackingController::class, 'optOut'])->name('optout.store')->middleware('throttle:20,1');
 
 // Admin: onaylı WhatsApp mesajını aç (gönderildi işaretler)

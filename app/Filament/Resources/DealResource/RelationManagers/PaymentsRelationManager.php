@@ -29,7 +29,7 @@ class PaymentsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table->defaultSort('due_date', 'desc')->columns([
-            Tables\Columns\TextColumn::make('type')->label('Tür')->formatStateUsing(fn ($s) => Payment::TYPES[$s] ?? $s),
+            Tables\Columns\TextColumn::make('type')->label('Tür')->formatStateUsing(fn ($state) => Payment::TYPES[$state] ?? $state),
             Tables\Columns\TextColumn::make('period')->label('Dönem')->placeholder('—'),
             Tables\Columns\TextColumn::make('amount')->label('Tutar')->money('TRY', locale: 'tr'),
             Tables\Columns\TextColumn::make('due_date')->label('Vade')->date('d.m.Y'),

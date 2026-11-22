@@ -9,9 +9,7 @@
 -- UYARI: Alan adları Overture şemasına göre yazıldı; sürümünüzde farklıysa
 -- (ör. categories.primary yerine basic_category, operating_status yoksa) sorguyu uyarlayın:
 --   https://docs.overturemaps.org/schema/reference/places/place
-INSTALL spatial;
 INSTALL httpfs;
-LOAD spatial;
 LOAD httpfs;
 SET s3_region = 'us-west-2';
 
@@ -24,8 +22,8 @@ COPY (
         websites[1]                                     AS website,
         emails[1]                                       AS email,
         socials[1]                                      AS social,
-        ST_Y(geometry)                                  AS lat,
-        ST_X(geometry)                                  AS lng,
+        bbox.ymin                                       AS lat,   -- nokta geometrilerde bbox = konum (spatial eklentisi gerekmez)
+        bbox.xmin                                       AS lng,
         categories.primary                              AS category,
         confidence,
         operating_status                                AS status      -- sürümünüzde yoksa bu satırı silin

@@ -153,8 +153,10 @@ class OutreachTest extends TestCase
         $this->assertTrue($b->site->fresh()->is_sold);
         $this->assertSame(15000, $deal->payments()->where('type', 'setup')->value('amount'));
 
-        $this->assertSame(1, app(OutreachService::class)->generateMaintenancePayments());
-        $this->assertSame(0, app(OutreachService::class)->generateMaintenancePayments(), 'Aynı ay iki kez oluşturulmaz');
+        // Satış 2 ay önce: bakım, sonraki aydan başlar → geçen ay + bu ay (kaçan dönem de tamamlanır)
+        $this->assertSame(2, app(OutreachService::class)->generateMaintenancePayments());
+        $this->assertSame(0, app(OutreachService::class)->generateMaintenancePayments(), 'Aynı dönem iki kez oluşturulmaz');
+        $this->assertSame(2, $deal->payments()->where('type', 'maintenance')->count());
 
         $this->get('/'.$b->site->slug)->assertHeader('X-Robots-Tag', 'all');
     }

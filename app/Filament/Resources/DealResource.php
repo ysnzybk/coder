@@ -53,8 +53,8 @@ class DealResource extends Resource
             Tables\Columns\TextColumn::make('maintenance_price')->label('Aylık')->money('TRY', locale: 'tr'),
             Tables\Columns\TextColumn::make('started_at')->label('Başlangıç')->date('d.m.Y')->sortable(),
             Tables\Columns\TextColumn::make('status')->label('Durum')->badge()
-                ->formatStateUsing(fn ($s) => Deal::STATUSES[$s] ?? $s)
-                ->color(fn ($s) => $s === 'active' ? 'success' : 'gray'),
+                ->formatStateUsing(fn ($state) => Deal::STATUSES[$state] ?? $state)
+                ->color(fn ($state) => $state === 'active' ? 'success' : 'gray'),
             Tables\Columns\TextColumn::make('unpaid')->label('Bekleyen ödeme')
                 ->getStateUsing(fn (Deal $r) => $r->payments()->whereNull('paid_at')->sum('amount'))
                 ->money('TRY', locale: 'tr')->color(fn ($state) => $state > 0 ? 'danger' : null),

@@ -92,7 +92,12 @@ Firmalar → ⋯ → **İçeriği düzenle**: başlık, alt başlık, hakkımız
 | `MAIL_*` | Kendi SMTP hesabınız | Gmail: uygulama şifresi, port 587, `MAIL_SCHEME=null` |
 | `ANTHROPIC_API_KEY` | console.anthropic.com | **Ücretli, isteğe bağlı.** `LEADGEN_AI_PROVIDER=anthropic` ile açılır |
 
-## cPanel (paylaşımlı hosting) dağıtımı
+## Dağıtım ve e-posta rehberleri
+- Adım adım cPanel kurulumu, cron, HTTPS, firma alan adı, yedekleme, güvenlik kontrol listesi: [`docs/DEPLOY.md`](docs/DEPLOY.md) (güncelleme: `bash scripts/deploy.sh`)
+- Yapılandırma denetimi (dış servis çağırmaz): `php artisan leadgen:check --production`
+- SPF/DKIM/DMARC, ısınma programı, teslim edilebilirlik: [`docs/EMAIL.md`](docs/EMAIL.md)
+
+## cPanel (paylaşımlı hosting) dağıtımı — kısa özet
 
 1. Dosyaları ana dizin dışına yükleyin (ör. `~/site-teklif`), `public/` içeriğini `public_html`'e bağlayın
    (cPanel → Domains → Document Root = `~/site-teklif/public`, ya da `public_html` yerine symlink).

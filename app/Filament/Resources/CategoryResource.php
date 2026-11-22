@@ -46,7 +46,7 @@ class CategoryResource extends Resource
             Tables\Columns\TextColumn::make('name')->label('Ad')->searchable(),
             Tables\Columns\TextColumn::make('search_term')->label('Arama terimi'),
             Tables\Columns\TextColumn::make('included_type')->label('Places türü')->placeholder('—'),
-            Tables\Columns\TextColumn::make('template')->label('Şablon')->formatStateUsing(fn ($s) => Category::TEMPLATES[$s] ?? $s),
+            Tables\Columns\TextColumn::make('template')->label('Şablon')->formatStateUsing(fn ($state) => Category::TEMPLATES[$state] ?? $state),
             Tables\Columns\TextColumn::make('setup_price')->label('Kurulum')->placeholder('varsayılan'),
             Tables\Columns\ToggleColumn::make('is_active')->label('Aktif'),
         ])->actions([Tables\Actions\EditAction::make()]);
