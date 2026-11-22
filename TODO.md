@@ -198,7 +198,9 @@ Durum (2026-11-22): Cloudflare tamam ve doğrulandı. Sıradaki iş Google Place
 
 **Komutlar**
 ```bash
-php artisan test                                   # 37 test
+php artisan test                                   # 46 test
+php artisan leadgen:check --production             # canlı kontrol listesi (dış çağrı yapmaz)
+bash scripts/deploy.sh                             # sunucuda güncelleme (git pull, composer, migrate, cache)
 php artisan migrate:fresh --seed                   # il/ilçe, sektör, şablonlar
 php artisan db:seed --class=DemoSeeder             # örnek firmalar (anahtar gerekmez, GD yer tutucu görsel)
 php artisan queue:work --stop-when-empty           # kuyruğu işle (cPanel'de cron schedule:run bunu yapar)

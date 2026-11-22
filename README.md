@@ -32,10 +32,10 @@ Satış: "Satış yapıldı" → kurulum ödemesi + her ay bakım ödemesi otoma
 |---|---|
 | **Rapor** | İl/ilçe/sektör/tarih filtreli huni, e-posta açılma/tıklama, WhatsApp→site açılma, MRR, tahsilat, ilçe kırılımı |
 | **Firma Ara** | Yeni arama, durum, bulunan/hedef sayısı, API çağrısı |
-| **Firmalar** | Sekmeler: Hedefler / Manuel iletişim / Gönderildi / Satış / Kaybedilen / Elenen. Aksiyonlar: site üret, e-posta ekle, arama sonucu gir, cevap geldi, satış yapıldı, kaybedildi, CSV |
+| **Firmalar** | Sekmeler: Hedefler / **Doğrulama bekleyen** / Manuel iletişim / Gönderildi / Satış / Kaybedilen / Elenen / **Hatalı** / Tümü. Eylemler: site üret, **içeriği düzenle**, **görselsiz hazırla**, e-posta ekle, arama sonucu gir, cevap geldi, satış yapıldı, kaybedildi; doğrulama bekleyenlerde **Web'de ara / Sitesi yok → onayla / Sitesi var → ele** (tekil ve toplu); CSV dışa aktarma |
 | **Onay & Gönderim** | Mesaj + canlı site önizleme yan yana, düzenle, onayla/reddet, toplu onay, WhatsApp'ta aç |
 | **Satışlar & Ödemeler** | Satış, ödemeler (ödendi işaretle), firmanın kendi alan adını bağlama |
-| **Ayarlar** | Varsayılan fiyat (15.000 TL + 1.000 TL/ay), gönderen adı/telefonu, SMTP limitleri, entegrasyon durumu, mesaj şablonları, sektörler, ret listesi |
+| **Ayarlar** | Genel ayarlar (varsayılan fiyat 15.000 TL + 1.000 TL/ay, gönderen adı/telefonu, SMTP limitleri, **ücretsiz kota kullanımı**, entegrasyon durumu, **cron göstergesi**), **Dosyadan içe aktar** (Overture/CSV), mesaj şablonları, sektörler, ret listesi |
 
 Mesaj şablonu değişkenleri: `{firma_adi} {site_linki} {kurulum_ucreti} {bakim_ucreti} {ilce} {il} {ret_linki} {gonderen_adi} {gonderen_telefon}`.
 Fiyat önceliği: firma → sektör → genel ayar.
@@ -123,6 +123,10 @@ Firmalar → ⋯ → **İçeriği düzenle**: başlık, alt başlık, hakkımız
 ## Testler
 
 ```bash
-php artisan test
+php artisan test        # 46 test
 ```
-Telefon/kanal sınıflandırma, website sınıflandırma, arama → uygunluk akışı (Places `Http::fake`), site üretimi, onaysız gönderim engeli, SMTP limiti, WhatsApp onay/giriş kontrolü, bot filtreli ziyaret takibi, e-posta açılma/tıklama, ret, satış/bakım ödemeleri.
+- **Sınıflandırma ve akış:** telefon/kanal (cep → WhatsApp, sabit hat → e-posta/manuel), website sınıflandırma, arama → uygunluk (Places `Http::fake`), site üretimi, onaysız gönderim engeli.
+- **Ücretsiz yapı:** Cloudflare metin üretimi (JSON şema, kod bloğu, geçersiz çıktı → şablon, bütçe aşımı → ertelenme), sağlayıcı seçimi, içerik denetimi (telefon/bağlantı/fiyat ayıklama, riskli görsel betimlemesi), görsel küçültme ve gerçek neuron sayımı, Google Places aylık kota (kısmi arama, yorumsuz üretim).
+- **Dosyadan içe aktarma:** CSV satır yönlendirme, ilçe/il eşleme, "Doğrulama bekliyor" kapısı, doğrulama eylemleri, hatalı başlık.
+- **Gönderim ve takip:** WhatsApp onay/giriş kontrolü, SMTP limiti, bot filtreli ziyaret takibi, e-posta açılma/tıklama, ret, satış ve bakım ödemeleri (kaçan dönemleri tamamlama).
+- **Panel ve güvenlik:** tüm admin sayfaları dolu veriyle (duman testi), XSS/JSON-LD kaçışı, CSV formül enjeksiyonu, güvenlik başlıkları, `leadgen:check`.
