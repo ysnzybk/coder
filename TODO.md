@@ -1,70 +1,151 @@
-# TODO
+# TODO ve devir notları
 
-Son güncelleme: 2026-11-22 · Dal: `claude/local-business-website-builder-rwkah5`
+Son güncelleme: 2026-11-22 · Dal: `claude/local-business-website-builder-rwkah5` (GitHub'a push edildi, erişim sorunu çözüldü)
 
-## Önce çözülmesi gerekenler (engeller)
+Bu dosya, çalışmaya sonradan kaldığımız yerden devam edebilmek için **tüm notları** içerir: kararlar, yapılanlar, doğrulanmayanlar, açık işler, çalışma bilgileri.
 
-- [ ] **GitHub erişimi:** Push 403 verdi, commit yalnızca yerelde. https://claude.ai/connect-github üzerinden GitHub'ı yeniden bağla, Claude GitHub App'in `ysnzybk/coder` reposunda kurulu olduğunu kontrol et, sonra dalı push et.
-- [ ] **Alan adı** (`APP_URL`) kararı. Henüz yok; firma siteleri `APP_URL/firma-adi` altında yayınlanacak.
-- [ ] **Google Places API anahtarı** (`GOOGLE_PLACES_API_KEY`): Google Cloud'da "Places API (New)" etkinleştirilmeli.
-- [ ] ~~Anthropic API anahtarı~~ artık gerekmiyor (ücretsiz yapıda Cloudflare kullanılıyor; Claude isteğe bağlı).
-- [ ] **Cloudflare Workers AI** bilgileri (`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`).
-- [ ] **SMTP bilgileri** ve sağlayıcının günlük gönderim limiti (panel ayarı varsayılanı: 20/saat, 100/gün).
+---
 
-## Yapıldı
+## 1. Proje özeti
 
-- [x] Laravel 12 + Filament 3 iskeleti, MySQL/SQLite migration'ları
-- [x] 81 il / 973 ilçe seed verisi (`turkey-neighbourhoods`, MIT), 12 sektör, varsayılan mesaj şablonları
-- [x] Places arama: il → ilçe(ler) → sektör, ilçe dışı sonuçları eleme, tekrar eden firmayı atlama
-- [x] "Sitesi yok" sınıflandırması (boş + yalnızca sosyal medya/link servisi)
-- [x] Kanal kuralları: cep → WhatsApp, sabit hat + e-posta → e-posta, ikisi de yok → manuel iletişim (site isteğe bağlı)
-- [x] Site üretimi: Cloudflare Llama içerik (JSON şema modu) + Claude (isteğe bağlı) + şablon yedeği + Cloudflare görsel + 5 sektör şablonu
-- [x] Onay & Gönderim: tekil/toplu onay, WhatsApp wa.me, SMTP kuyruğu + saatlik/günlük limit
-- [x] Takip: site ziyareti (bot filtreli), e-posta açılma/tıklama, ret (opt-out) + kara liste
-- [x] Satış, ödemeler, aylık bakım ödemesi otomasyonu, firmanın kendi alan adı alanı
+Google Haritalar'da kayıtlı ama web sitesi olmayan yerel işletmeleri il/ilçe + sektör bazında bulur, her birine sektörüne uygun bir tanıtım sitesi üretir, **onayınızdan sonra** WhatsApp veya e-posta ile teklif gönderir ve süreci raporlar.
+Teklif: kurulum 15.000 TL + aylık 1.000 TL bakım, "beğenmezseniz ödeme yok" (panelden düzenlenebilir şablon, fiyat firma → sektör → genel sırasıyla ezilir).
+
+Stack: Laravel 12 · Filament 3 · MySQL (canlı) / SQLite (local) · Google Places API (New) + Overture Maps (açık veri) · Cloudflare Workers AI (metin + görsel) · Claude API (isteğe bağlı) · kendi SMTP · wa.me.
+
+## 2. Alınan kararlar (kullanıcı onaylı)
+
+| Konu | Karar |
+|---|---|
+| Kullanıcı | Tek admin |
+| Hosting | Paylaşımlı cPanel, SSH + Composer + PHP 8.2+ var; kuyruk `database` sürücüsü + her dakika cron (`schedule:run`) |
+| URL | Yol tabanlı: `APP_URL/firma-adi` (alan adı henüz yok). Satış sonrası firmanın kendi alan adı Addon domain ile bağlanır |
+| "Sitesi yok" | Website alanı boş **veya** yalnızca Instagram/Facebook/Linktree/WhatsApp vb. (ayrı etiket: sadece sosyal) |
+| Kanal | Cep (05xx) → WhatsApp + otomatik site. Sabit hat + e-posta → e-posta + otomatik site. İkisi de yok → **Manuel iletişim** (elenmez, site yalnızca "Site üret" ile; arama sonucu panelden girilir). E-posta Places'ten gelmez, elle eklenir |
+| Onay | Tek tek ve toplu onay; **onaysız hiçbir mesaj gitmez** |
+| WhatsApp | wa.me bağlantısı, kullanıcı kendi telefonundan elle gönderir; sistem "gönderildi" işaretler |
+| E-posta | Kendi SMTP; açılma pikseli + tıklama yönlendirmesi; saatlik/günlük limit (varsayılan 20/100) |
+| Rapor | Satış hunisi, site ziyareti, e-posta açılma/tıklama, gelir (MRR/tahsilat); il/ilçe/sektör/tarih filtreli |
+| Panel | Filament |
+| Görseller | Firmaya özel, ücretsiz: Cloudflare FLUX-1-schnell (Places fotoğrafları kullanılmaz, Google ToS) |
+| Ücretsiz yapı | Veri: **hibrit** (Google ücretsiz kota + Overture dosyası). Metin: **Cloudflare Llama 3.3 70B**. Claude ücretli ve isteğe bağlı |
+| AI asistan (restoran senaryosu) | Kapsam dışı, sonraki faz |
+| Tasarım | Sektöre özel şablonlar, modern, erişilebilir. `/taste-skill` ve `/find-skill` adlı skiller hesapta **yok**; yerine `design:accessibility-review` kullanıldı |
+
+## 3. Engeller (sizden gerekenler)
+
+- [ ] **Alan adı** (`APP_URL`) kararı.
+- [ ] **Cloudflare hesabı** (ücretsiz, kart gerekmez): `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` (Workers AI: Read/Edit). Metin ve görsel için tek anahtar.
+- [ ] **Google Places API anahtarı** (`GOOGLE_PLACES_API_KEY`): Cloud'da "Places API (New)" etkin olmalı. Kart gerekir. **Günlük kota kapakları kurulmadan canlıya çıkılmamalı** (bkz. README → Ücretsiz yapı). İstenmezse tamamen Overture ile devam edilebilir.
+- [ ] **SMTP bilgileri** ve sağlayıcının günlük gönderim limiti.
+- [ ] ~~Anthropic API anahtarı~~ gerekmiyor (isteğe bağlı, ücretli).
+
+## 4. Yapıldı
+
+- [x] Laravel 12 + Filament 3 iskeleti, migration'lar, 81 il / 973 ilçe seed (`turkey-neighbourhoods`, MIT), 12 sektör, varsayılan mesaj şablonları
+- [x] Places arama (il → ilçe(ler) → sektör), ilçe dışı sonuçları eleme, tekrarı atlama, "sitesi yok" sınıflandırması, kanal kuralları
+- [x] Site üretimi: yorum/saat çekme → metin (Cloudflare Llama JSON şema modu / Claude / şablon) → görseller → onay taslağı
+- [x] Onay & Gönderim: tekil/toplu onay, WhatsApp wa.me, SMTP kuyruğu + limit
+- [x] Takip: site ziyareti (bot filtreli), e-posta açılma/tıklama, ret (opt-out, onay butonlu) + kara liste
+- [x] Satış, ödemeler, aylık bakım ödemesi otomasyonu (günlük 03:10), firmanın kendi alan adı alanı
 - [x] Rapor: filtreli huni, kanal başarısı, MRR/tahsilat, ilçe kırılımı, CSV dışa aktarma
-- [x] 23 otomatik test geçiyor, README (cPanel kurulumu dahil)
-- [x] Site şablonları modernleştirildi: sektöre özel hero/hizmet/kapanış varyantları (restoran: bölünmüş hero + menü, güzellik: ortalı hero + liste, oto: koyu hero + karolar), mobil yapışkan Ara/WhatsApp çubuğu, giriş animasyonları
-- [x] Ücretsiz yapı: Cloudflare metin+görsel ortak neuron bütçesi (UTC), Google Places aylık kota sayacı + kısmi arama, Overture CSV içe aktarma (komut + panel), "Doğrulama bekliyor" kapısı, panelden içerik düzenleme, kota göstergeleri
-- [x] Erişilebilirlik: axe-core ile 5 şablon × 9 palet (45 kombinasyon) WCAG 2.1 AA ihlali yok; landmark, atla bağlantısı, odak halkası, 44px dokunma hedefi
+- [x] **Şablonlar:** sektöre özel hero/hizmet/kapanış varyantları (restoran: bölünmüş hero + menü, güzellik: ortalı hero + liste, oto: koyu hero + karolar, pet shop/genel: tam ekran hero + kartlar), mobil yapışkan Ara/WhatsApp çubuğu, reduced-motion uyumlu animasyonlar, palet türevleri (`on_primary`, `hero_a/b`, `on_hero`)
+- [x] **Erişilebilirlik:** axe-core ile 5 şablon × 9 palet = 45 kombinasyonda WCAG 2.1 AA ihlali yok; landmark'lar, atla bağlantısı, odak halkası, 44px hedefler
+- [x] **Ücretsiz yapı:**
+  - Cloudflare metin üretimi (`CloudflareContentGenerator`), sağlayıcı seçimi `LEADGEN_AI_PROVIDER` (cloudflare | anthropic | template), anahtar yoksa şablona düşer
+  - Ortak neuron bütçesi (`CloudflareBudget`, UTC günü, varsayılan 9.000); dolunca iş hata vermeden ertesi güne ertelenir; 429/neuron hatasında bütçe tükenmiş sayılır
+  - `ContentSanitizer`: telefon/bağlantı/e-posta/TL fiyat ayıklama, uzunluk sınırı, yapı doğrulama
+  - Google Places aylık sayaç (`PlacesBudget`, Pasifik saatine göre ay; varsayılan 900 arama / 900 detay); arama "Kısmi (kota)" biter, site yorumsuz üretilir
+  - Overture/CSV içe aktarma: `php artisan places:import-file` + panel sayfası "Dosyadan içe aktar"; `docs/OVERTURE.md`, `scripts/overture-export.sql`
+  - **Doğrulama kapısı:** dosya kaynaklı firmalar "Doğrulama bekliyor" olur, site üretilmez; Web'de ara / Sitesi yok → onayla / Sitesi var → ele (tekil ve toplu)
+  - Panelden içerik düzenleme ("İçeriği düzenle"), "Görselsiz hazırla", Ayarlar'da kota göstergeleri
+- [x] 37 otomatik test geçiyor, README (cPanel + ücretsiz yapı + Google kapak adımları)
 
-## Doğrulanmadı / gözden geçirilmeli
+## 5. Doğrulanmadı — canlı anahtarlarla ilk iş bunlar
 
-- [ ] **Cloudflare Llama JSON şema modu:** `llama-3.3-70b-instruct-fp8-fast` modelinin `response_format: json_schema` ve bizim şemayı (enum, additionalProperties:false) kabul ettiği canlıda teyit edilmeli; Türkçe kalitesi ve gerçek neuron tüketimi ölçülmeli (`CLOUDFLARE_NEURONS_PER_IMAGE`, token maliyetleri tahmin).
-- [ ] **Google kota rakamları:** SKU başına ücretsiz 1.000 istek bilgisi resmi sayfadan; hangi SKU'ya düştüğümüz (Text Search Enterprise, Place Details Enterprise+Atmosphere) Cloud Console faturalama raporundan teyit edilmeli. Günlük kota kapakları kurulmalı.
-- [ ] **Overture gerçek dosyası:** `scripts/overture-export.sql` alan adları (`categories.primary`, `operating_status`, `addresses[1]`...) ve `file_import.category_map` anahtarları gerçek sürümle denenmedi; Türkiye kapsamı ve "web sitesi yok" doğruluğu ölçülmeli. Test yalnızca örnek CSV ile yapıldı.
+Hiçbir dış servis gerçek anahtarla çalıştırılmadı; testler `Http::fake` ve örnek CSV ile yapıldı. Anahtarlar gelince **tek ilçe + tek sektörle küçük bir canlı deneme** yapılmalı:
 
-- [ ] **Gerçek API'lerle uçtan uca deneme:** Places, Claude ve Cloudflare hiç gerçek anahtarla çalıştırılmadı. Claude isteği yalnızca sahte anahtarla 401'e kadar gitti. Anahtarlar gelince tek ilçe + tek sektörle küçük bir canlı deneme yap.
-- [ ] **Places alan adları:** `places:searchText` yanıtındaki `nationalPhoneNumber`, `websiteUri`, `businessStatus`, `reviews` vb. alan adları canlı yanıtla teyit edilmeli. Testler sahte yanıtla çalışıyor.
-- [ ] **Places `includedType` değerleri** (`pet_store`, `hair_care`, `barber_shop` vb.): geçersiz bir tür aramayı hataya düşürebilir. Canlıda her sektör için kontrol et; gerekirse panelden boşalt.
-- [ ] **Cloudflare FLUX yanıt biçimi** (`result.image` base64) ve `steps` parametresi canlıda teyit edilmeli.
-- [ ] **Rapor ekranı** (Dashboard, widget'lar, filtreler) açılıyor ve hata vermiyor ama ekran görüntüsü incelenmedi. Veri azken doğru rakam gösterip göstermediği kontrol edilmeli.
-- [ ] **Firmalar tablosu** dar ekranda taşıyordu; bazı sütunlar varsayılan gizli yapıldı, tekrar bakılmalı.
-- [ ] **cPanel dağıtımı** hiç denenmedi (document root, `storage:link`, cron, AutoSSL).
-- [ ] **E-posta teslim edilebilirliği:** kendi SMTP + takip pikseli spam'e düşebilir. SPF/DKIM/DMARC ayarları ve küçük hacimle başlama gerekli.
+- [ ] **Cloudflare Llama JSON şema modu:** `@cf/meta/llama-3.3-70b-instruct-fp8-fast` modelinin `response_format: json_schema` ve şemamızı (enum, `additionalProperties:false`, iç içe diziler) kabul ettiği teyit edilmeli. Kabul etmezse şemayı sadeleştir ya da modeli değiştir (`CLOUDFLARE_TEXT_MODEL`).
+- [ ] **Türkçe metin kalitesi** (Llama, Claude'un altında olabilir): örnekleri oku; zayıfsa `ContentSanitizer`/prompt'u sıkılaştır ya da Gemini/Groq gibi başka ücretsiz sağlayıcı ekle. Elle düzeltme yolu hazır.
+- [ ] **Gerçek neuron tüketimi:** metin ve görsel maliyetleri tahmin (`CLOUDFLARE_NEURONS_PER_IMAGE=120`, token başına neuron). Gerçek tüketimle ayarla; günde kaç site çıktığını ölç (tahmin 20–40).
+- [ ] **FLUX yanıt biçimi** (`result.image` base64) ve `steps` parametresi; görsel boyutu/kırpma şablonlarda nasıl görünüyor.
+- [ ] **Google kota rakamları:** SKU başına ücretsiz 1.000 istek bilgisi 2026 tarihli bir kaynakla doğrulanamadı. Hangi SKU'ya düştüğümüz (Text Search Enterprise, Place Details Enterprise+Atmosphere) Cloud Console faturalama raporundan teyit edilmeli.
+- [ ] **Places alan adları:** `places:searchText` yanıtındaki `nationalPhoneNumber`, `internationalPhoneNumber`, `websiteUri`, `businessStatus`, `reviews`, `regularOpeningHours` vb. canlı yanıtla teyit edilmeli.
+- [ ] **Places `includedType` değerleri** (`pet_store`, `hair_care`, `barber_shop`, `car_repair`, `florist`...): geçersiz tür aramayı hataya düşürebilir; her sektör için dene, gerekirse Sektörler ekranından boşalt.
+- [ ] **Overture gerçek dosyası:** `scripts/overture-export.sql` alan adları (`categories.primary`, `operating_status`, `addresses[1]`, `websites`, `socials`, `emails`, `phones`) ve `config/leadgen.php → file_import.category_map` anahtarları gerçek sürümle denenmedi. Türkiye kapsamı ve "web sitesi yok" doğruluğu ölçülmeli.
+- [ ] **cPanel dağıtımı** hiç denenmedi (document root, `storage:link`, cron, AutoSSL, Addon domain ile firma alan adı).
+- [ ] **E-posta teslim edilebilirliği:** kendi SMTP + takip pikseli spam'e düşebilir; SPF/DKIM/DMARC, küçük hacimle başlama, Gmail kullanılıyorsa uygulama şifresi ve günlük limit.
+- [ ] **Rapor ekranı** (Dashboard, widget'lar, filtreler) açılıyor ve hata vermiyor ama ekran görüntüsü incelenmedi; az veriyle doğru rakam gösterip göstermediği kontrol edilmeli.
+- [ ] **Firmalar tablosu** dar ekranda taşıyordu; bazı sütunlar varsayılan gizli, doğrulama eylemleri ikon butona çevrildi; tekrar bakılmalı.
+- [ ] **Gerçek görsellerle şablonlar:** şablonlar şu an yalnızca GD ile üretilen renkli yer tutucularla görüldü. Gerçek FLUX görselleriyle (kırpma, açık/koyu zemin) bir kez daha bakılmalı.
+- [ ] Google haritası embed'i sandbox'ta internet olmadığı için hiç görülemedi.
 
-## Bilinen eksikler
+## 6. Bilinen eksikler / teknik borç
 
-- [ ] Şablon görselleri Cloudflare yokken GD yer tutucularıyla (yalnızca demo) denendi; gerçek FLUX görselleriyle (kırpma, aydınlık/karanlık) canlıda bir kez daha bakılmalı.
-- [ ] Harita (Google embed) sandbox'ta internet olmadığı için görülemedi.
-- [ ] `color-mix()` kullanılıyor; çok eski tarayıcılarda bazı yumuşak zeminler düz görünür.
+- [ ] İlçelerin `lat/lng` değerleri seed'de yok → Places `locationBias` kullanılmıyor; arama yalnızca metin sorgusu ("pet shop Kadıköy İstanbul") + adres metninde ilçe eşlemesi ile çalışıyor. Komşu ilçe sonuçları atılıyor ama kapsam kaçabilir; ilçe merkez koordinatları eklenebilir.
+- [ ] Dosya içe aktarmada ilçe eşlemesi adres metnine bakar (en uzun ilçe adı; başka il adı geçip seçilen il geçmiyorsa atlanır). "Merkez" gibi tekrarlı ilçe adlarında yanlış eşleşme olabilir.
+- [ ] Dosya içe aktarmada `category_map` sektör slug'larına bağlı (`CategorySeeder`); sektör adı/slug değişirse eşleme bozulur.
+- [ ] "Siteyi yeniden üret" elle yapılan içerik düzenlemelerini siler (uyarı metni var; `content._edited` bayrağı kaydediliyor ama henüz kullanılmıyor).
+- [ ] Claude reddederse şablon içeriğe düşüyor; Anthropic tarafında otomatik model geçişi (`fallbacks`) yok (PHP SDK bağlaması doğrulanamadı). Yalnızca `LEADGEN_AI_PROVIDER=anthropic` kullanılırsa önemli.
+- [ ] Cloudflare neuron bütçesi `Cache` üzerinde; önbellek temizlenirse sayaç sıfırlanır (cPanel'de `CACHE_STORE=database` kalıcıdır, `file`/`array` değil).
+- [ ] Panelde kullanıcı yönetimi yok; admin `php artisan make:filament-user` veya `ADMIN_EMAIL`/`ADMIN_PASSWORD` + seed ile oluşturuluyor.
+- [ ] Gönderilen WhatsApp mesajı yalnızca "WhatsApp'ta aç" tıklanınca "gönderildi" sayılıyor; kullanıcının gerçekten gönderip göndermediği bilinemiyor.
+- [ ] Cevap geldi / ilgileniyor durumu elle işaretleniyor (WhatsApp ve e-posta cevapları okunmuyor).
+- [ ] Takip mesajı (follow-up) / yeniden gönderme akışı yok.
+- [ ] Hata alan işler için toplu "tekrar dene" yok (tek tek "Site üret").
+- [ ] Sitelerde çok dilli içerik, iletişim formu, çevrimiçi ödeme yok. `color-mix()` kullanıldığı için çok eski tarayıcılarda bazı yumuşak zeminler düz görünür.
+- [ ] Yerel `.env`'de `APP_NAME=Laravel` kalmış olabilir ("Gönderen adı" varsayılanı buradan gelir); canlıda Ayarlar'dan gönderen adı/telefonu girilmeli.
 
-- [ ] Claude içerik üretmeyi reddederse şablon içeriğe düşüyor; Anthropic tarafında otomatik model geçişi (`fallbacks`) eklenmedi (PHP SDK bağlaması doğrulanamadı).
-- [ ] Panelde kullanıcı yönetimi yok; admin `make:filament-user` veya `ADMIN_EMAIL`/`ADMIN_PASSWORD` + seed ile oluşturuluyor.
-- [ ] Gönderilen WhatsApp mesajı yalnızca "WhatsApp'ta aç" tıklanınca "gönderildi" sayılıyor; kullanıcı gerçekten gönderdi mi bilinemiyor.
-- [ ] Cevap geldi / ilgileniyor durumu elle işaretleniyor (WhatsApp ve e-posta cevapları otomatik okunmuyor).
-- [ ] Mesaj yeniden gönderme / takip mesajı (follow-up) akışı yok.
-- [ ] Hata alan işler için panelde toplu "tekrar dene" yok (tek tek "Site üret" ile yapılıyor).
-- [ ] Sitelerde çok dilli içerik, iletişim formu, çevrimiçi ödeme yok.
-
-## Sonraki faz (kapsam dışı bırakıldı)
+## 7. Sonraki fazlar (kapsam dışı bırakıldı)
 
 - [ ] Restoran senaryosu: menü/yorum analizi, mesajlara otomatik cevap veren ve rezervasyon alan AI asistan (ilk görseldeki istek).
 - [ ] Gelen WhatsApp/e-posta yanıtlarını otomatik yakalama.
-- [ ] Çoklu kullanıcı / roller (şu an tek admin).
+- [ ] Çoklu kullanıcı / roller.
+- [ ] Başka ücretsiz LLM sağlayıcıları (Gemini Flash-Lite ~500/gün, Groq ~1.000/gün; limitler kaynaklarda çelişkili, panelden teyit gerekir) — `SiteContentGenerator` arayüzü hazır, yeni sınıf + `AppServiceProvider` eşlemesi yeter.
+- [ ] Başka açık veri kaynakları değerlendirildi ve **seçilmedi**: OSM/Overpass (Türkiye'de dükkân telefon/website kapsamı ölçülmemiş, genel sunucu ticari kullanıma uygun değil), Foursquare OS Places (Hugging Face'te kapılı).
 
-## Çalışma notları
+## 8. Yasal ve uyum notları
 
-- Kurallar `config/leadgen.php`, kanal/uygunluk mantığı `app/Services/Places/BusinessImporter.php`, onay ve satış mantığı `app/Services/Outreach/OutreachService.php`.
-- Demo veri: `php artisan db:seed --class=DemoSeeder` (API anahtarı gerektirmez).
-- Testler: `php artisan test`
+- 6563 sayılı Kanun: esnaf/tacire ticari ileti için ön onay şartı yok ama **ret hakkı sunmak zorunlu**. Her mesajda ret bağlantısı var; ret veren numara/e-posta kara listeye girer. Ret sayfası link önizleme botlarının yanlışlıkla ret vermemesi için onay butonu ister.
+- Google Places: `place_id` kalıcı saklanır; yorumlar yazar adı + "Google yorumu" atfıyla gösterilir; Places fotoğrafları kullanılmaz.
+- Önizleme siteleri satılana kadar `noindex`.
+- Overture Places teması CDLA Permissive 2.0 / Apache 2.0 olarak yayımlanır; kullandığınız sürümün lisans notunu kontrol edin.
+- Google ücretsiz kotası için kart gerekir; günlük kota kapağı ve bütçe uyarısı kurulmazsa aşımda ücret çıkabilir.
+
+## 9. Çalışma notları (devam ederken)
+
+**Dosyalar**
+- Kurallar/limitler: `config/leadgen.php` (tüm `.env` anahtarları `.env.example`'da)
+- Kanal ve uygunluk mantığı, doğrulama kapısı: `app/Services/Places/BusinessImporter.php`
+- Dosya içe aktarma: `app/Services/Places/FilePlacesImporter.php`, `app/Console/Commands/ImportPlacesFile.php`
+- AI sağlayıcıları: `app/Services/Ai/*` (arayüz `SiteContentGenerator`, bağlama `AppServiceProvider`)
+- Bütçeler: `app/Services/Images/CloudflareBudget.php`, `app/Services/Places/PlacesBudget.php`
+- Onay ve satış: `app/Services/Outreach/OutreachService.php`
+- Site şablonları: `resources/views/sites/show.blade.php` + `sections/*`, stil `public/css/site.css`, paletler `app/Services/Sites/Themes.php`
+- Panel: `app/Filament/Resources/*`, `app/Filament/Pages/*`, `app/Filament/Widgets/*`
+
+**Komutlar**
+```bash
+php artisan test                                   # 37 test
+php artisan migrate:fresh --seed                   # il/ilçe, sektör, şablonlar
+php artisan db:seed --class=DemoSeeder             # örnek firmalar (anahtar gerekmez, GD yer tutucu görsel)
+php artisan queue:work --stop-when-empty           # kuyruğu işle (cPanel'de cron schedule:run bunu yapar)
+php artisan places:import-file dosya.csv --il="İstanbul" --ilce="Kadıköy" --kategori=pet-shop
+php artisan serve --host=127.0.0.1 --port=8000     # /admin
+```
+
+**Sandbox notları**
+- Bu ortamda dış internet yok (harita, Google, Cloudflare erişilemez); `npm` kayıt defteri erişilebilir (axe-core buradan kuruldu).
+- Playwright hazır; ekran görüntüsü alırken `html{scroll-behavior:smooth}` yüzünden betikte `scrollTo({behavior:'instant'})` kullanın, aksi halde `.reveal` bölümleri boş görünür (sitede hata yok).
+- Filament seçim kutuları Choices.js; Playwright'ta `.choices` tıklayıp metin yazın.
+- Yerel demo admin: `admin@example.com` / `secret123` (yalnızca local DB, repo'da yok).
+
+**Skiller**
+- `/taste-skill` ve `/find-skill` hesapta bulunamadı. Kullanılabilir tasarım skilleri: `design:accessibility-review`, `design:design-critique`, `design:ux-copy`, `design:design-system`.
+
+**Önerilen sıra**
+1. Cloudflare hesabı → metin + görsel canlı deneme (bölüm 5'in ilk maddeleri)
+2. Google Places anahtarı + kota kapakları → tek ilçe/sektör araması
+3. Rapor ekranı ve gerçek görselli şablon kontrolü
+4. cPanel dağıtımı + SMTP/DKIM
+5. İlk küçük hacimli gönderim (onaylı, elle WhatsApp)
