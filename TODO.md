@@ -116,7 +116,51 @@ Hiçbir dış servis gerçek anahtarla çalıştırılmadı; testler `Http::fake
 - Overture Places teması CDLA Permissive 2.0 / Apache 2.0 olarak yayımlanır; kullandığınız sürümün lisans notunu kontrol edin.
 - Google ücretsiz kotası için kart gerekir; günlük kota kapağı ve bütçe uyarısı kurulmazsa aşımda ücret çıkabilir.
 
-## 9. Çalışma notları (devam ederken)
+## 9. Sıradaki adımlar: Google Places (ayrıntılı)
+
+Durum (2026-11-22): Cloudflare tamam ve doğrulandı. Sıradaki iş Google Places anahtarı, kota kapakları ve ilk canlı arama. Hepsi README → "Ücretsiz yapı" ile uyumlu.
+
+### A) Sizin yapacağınız: Google Cloud hazırlığı (≈15 dk)
+1. **console.cloud.google.com** → yeni proje oluşturun (ör. `site-teklif`). Mevcut projeyi karıştırmayın; kota/fatura ayrı izlensin.
+2. **Faturalandırma:** projeye bir faturalandırma hesabı (kart) bağlayın. Places API'yi kullanmak için zorunlu. Yeni hesaplarda deneme kredisi olabilir; yine de aşağıdaki kapakları kurun.
+3. **APIs & Services → Library → "Places API (New)" → Enable.** (Eski "Places API" değil, **New** olanı.)
+4. **APIs & Services → Credentials → Create credentials → API key.** Oluşan anahtarı **API restrictions → Restrict key → Places API (New)** ile kısıtlayın. Canlı sunucu için ayrı, sunucu IP'sine kısıtlı ikinci bir anahtar önerilir (geliştirme anahtarı IP'ye kısıtlanamaz çünkü sandbox IP'si değişir).
+5. **Günlük kota kapağı (önemli, ücret çıkmasın diye):** APIs & Services → Places API (New) → **Quotas & System limits**. **Text Search** ve **Place Details** metotlarının "requests per day" kotasını düşürün (ör. günde 30 / 30). Gerekirse dakikalık kotayı da düşürün. Her metodun kotası ayrıdır; sınıra gelince Google isteği reddeder (sert durdurma).
+6. **Billing → Budgets & alerts:** 1 $'lık bütçe + %50/%90/%100 uyarıları. Uyarı yalnızca bildirir, durdurmaz; sert durdurmayı kota yapar.
+7. Anahtarı **sohbete yazmayın**; bana "hazır" deyin, güvenli formu açarım.
+
+### B) Benim yapacağım: bağlama ve ilk canlı deneme
+1. `request_credential`: host `places.googleapis.com`, başlık `X-Goog-Api-Key`, önek yok (Cloudflare'deki gibi proxy ekler). Yerel `.env`'de `GOOGLE_PLACES_API_KEY=proxy-injected`. Ağ izni için `coder` ortamında `places.googleapis.com` ayrıca eklenir (onay ister) veya kimlik bilgisi kaydı hostu zaten açar; ikisini de dene.
+2. **Küçük canlı arama:** Kadıköy + Pet shop (ya da seçeceğiniz tek ilçe/sektör). Beklenen: en fazla 3 sayfa = 3 Text Search isteği, ≤ 60 firma.
+3. **Canlı yanıtla doğrulanacaklar** (şu ana kadar yalnızca sahte yanıtla test edildi):
+   - alan adları: `nationalPhoneNumber`, `internationalPhoneNumber`, `websiteUri`, `businessStatus`, `rating`, `userRatingCount`, `googleMapsUri`, `location`, `types`
+   - `FieldMask` kabul ediliyor mu; hangi SKU'ya düşüyoruz (Text Search Pro mu Enterprise mi?)
+   - `includedType` (`pet_store`, `hair_care`, `barber_shop`, `car_repair`, `florist`...) geçerli mi; geçersizse hata mesajı ve çözüm
+   - `locationBias` kullanılmıyor (ilçe lat/lng yok) → komşu ilçe sonuçları ne kadar? `inDistrict` filtresi yeterli mi?
+   - kaç firma "sitesi yok" / "sadece sosyal" / "sabit hat" çıktı; kanal dağılımı
+4. **Place Details (yorum + saat):** uygun bir firmada `enrich()` çalıştır: `reviews`, `regularOpeningHours`, `editorialSummary` alanları, kota sayacı.
+5. **Kota sayacı karşılaştırması (Cloudflare'deki gibi):** Cloud Console → APIs & Services → Metrics/Quotas'taki istek sayısı ile uygulama sayacını (Ayarlar → Ücretsiz kota kullanımı) kıyasla; hangi SKU'ya faturalandığını Billing → Reports'tan teyit et. Ücretsiz kota rakamı (SKU başına ≈1.000) resmi sayfadan; 2026 tarihli teyit yok.
+6. Bir firma için tam hat: Places verisi → yorumlu Cloudflare metni → görseller → site → onay taslağı; ekran görüntüsü.
+7. Sonuçları bu dosyanın bölüm 5'ine işle, gerekirse `.env`/config sınırlarını (`GOOGLE_PLACES_MONTHLY_*_LIMIT`) ve `category.included_type` değerlerini düzelt, commit + push.
+
+### C) Google'dan sonra (önerilen sıra)
+1. Kuaför, oto, pet shop, genel şablonlarını gerçek Cloudflare görselleriyle ve mobilde kontrol et (restoran tamam).
+2. Rapor ekranı (Dashboard) gerçek/demo veriyle kontrol.
+3. Çok sektörlü canlı üretim kalitesi (Llama Türkçesi): 3-4 farklı sektörde metinleri oku, gerekirse prompt/sanitizer ayarla.
+4. cPanel dağıtımı (document root, `storage:link`, cron, AutoSSL, canlı `.env` gerçek Cloudflare token'ı ve Places anahtarıyla), Cloudflare/Places günlük kapakları kontrolü.
+5. SMTP + SPF/DKIM/DMARC, küçük hacimli ilk e-posta; WhatsApp elle gönderim denemesi (kendi numaranıza).
+6. Overture gerçek dosyasıyla bir deneme (`scripts/overture-export.sql`), doğrulama kapısı akışı.
+7. İlk gerçek müşteri turu: tek ilçe, 5-10 firma, tek tek onay.
+
+### Notlar
+- Oturum ortamı: `coder` (kişisel, repo `ysnzybk/coder`), izinli host `api.cloudflare.com`; Cloudflare token'ı bu ortama kayıtlı. Yeni oturum açarken bu ortamı seçin.
+- Yerel `.env` gitignore'da; içinde `CLOUDFLARE_ACCOUNT_ID` ve `proxy-injected` yer tutucuları var. Canlı sunucuya gerçek değerleri siz girersiniz.
+- Cloudflare bugünkü kullanım (UTC): panel 3,31k/10k; yarın sıfırlanır. Günlük bütçe 9.000, site başına ≈470 neuron (≈19 site/gün).
+- Places aylık sayaç sınırları varsayılan 900/900; Google'ın gerçek kotası SKU'ya göre farklı olabilir, canlı denemeden sonra ayarlanacak.
+- Aylık Google kullanımını azaltmak için aramayı ilçe ilçe değil, önce küçük bir ilçeyle deneyin; her sayfa 1 istektir.
+- Anahtarları/token'ları sohbete yazmayın; `request_credential` formunu kullanın.
+
+## 10. Çalışma notları (devam ederken)
 
 **Dosyalar**
 - Kurallar/limitler: `config/leadgen.php` (tüm `.env` anahtarları `.env.example`'da)
@@ -148,9 +192,4 @@ php artisan serve --host=127.0.0.1 --port=8000     # /admin
 **Skiller**
 - `/taste-skill` ve `/find-skill` hesapta bulunamadı. Kullanılabilir tasarım skilleri: `design:accessibility-review`, `design:design-critique`, `design:ux-copy`, `design:design-system`.
 
-**Önerilen sıra**
-1. Cloudflare hesabı → metin + görsel canlı deneme (bölüm 5'in ilk maddeleri)
-2. Google Places anahtarı + kota kapakları → tek ilçe/sektör araması
-3. Rapor ekranı ve gerçek görselli şablon kontrolü
-4. cPanel dağıtımı + SMTP/DKIM
-5. İlk küçük hacimli gönderim (onaylı, elle WhatsApp)
+**Önerilen sıra:** bölüm 9'daki (A → B → C) sıraya bakın.
