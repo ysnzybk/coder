@@ -19,6 +19,8 @@ class Business extends Model
 
     public const STATUS_MANUAL_CONTACT = 'manual_contact';
 
+    public const STATUS_NEEDS_VERIFICATION = 'needs_verification';
+
     public const STATUS_GENERATING = 'generating';
 
     public const STATUS_SITE_READY = 'site_ready';
@@ -43,6 +45,7 @@ class Business extends Model
         self::STATUS_DISCOVERED => 'Bulundu',
         self::STATUS_DISQUALIFIED => 'Elendi',
         self::STATUS_MANUAL_CONTACT => 'Manuel iletişim',
+        self::STATUS_NEEDS_VERIFICATION => 'Doğrulama bekliyor',
         self::STATUS_GENERATING => 'Site üretiliyor',
         self::STATUS_SITE_READY => 'Site hazır',
         self::STATUS_APPROVED => 'Onaylandı',

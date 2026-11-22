@@ -12,6 +12,7 @@ class SearchJob extends Model
         'pending' => 'Bekliyor',
         'running' => 'Çalışıyor',
         'completed' => 'Tamamlandı',
+        'partial' => 'Kısmi (kota)',
         'failed' => 'Hata',
     ];
 

@@ -7,7 +7,7 @@ Son güncelleme: 2026-11-22 · Dal: `claude/local-business-website-builder-rwkah
 - [ ] **GitHub erişimi:** Push 403 verdi, commit yalnızca yerelde. https://claude.ai/connect-github üzerinden GitHub'ı yeniden bağla, Claude GitHub App'in `ysnzybk/coder` reposunda kurulu olduğunu kontrol et, sonra dalı push et.
 - [ ] **Alan adı** (`APP_URL`) kararı. Henüz yok; firma siteleri `APP_URL/firma-adi` altında yayınlanacak.
 - [ ] **Google Places API anahtarı** (`GOOGLE_PLACES_API_KEY`): Google Cloud'da "Places API (New)" etkinleştirilmeli.
-- [ ] **Anthropic API anahtarı** (`ANTHROPIC_API_KEY`).
+- [ ] ~~Anthropic API anahtarı~~ artık gerekmiyor (ücretsiz yapıda Cloudflare kullanılıyor; Claude isteğe bağlı).
 - [ ] **Cloudflare Workers AI** bilgileri (`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`).
 - [ ] **SMTP bilgileri** ve sağlayıcının günlük gönderim limiti (panel ayarı varsayılanı: 20/saat, 100/gün).
 
@@ -18,16 +18,21 @@ Son güncelleme: 2026-11-22 · Dal: `claude/local-business-website-builder-rwkah
 - [x] Places arama: il → ilçe(ler) → sektör, ilçe dışı sonuçları eleme, tekrar eden firmayı atlama
 - [x] "Sitesi yok" sınıflandırması (boş + yalnızca sosyal medya/link servisi)
 - [x] Kanal kuralları: cep → WhatsApp, sabit hat + e-posta → e-posta, ikisi de yok → manuel iletişim (site isteğe bağlı)
-- [x] Site üretimi: Claude içerik (structured outputs) + şablon yedeği + Cloudflare görsel + 5 sektör şablonu
+- [x] Site üretimi: Cloudflare Llama içerik (JSON şema modu) + Claude (isteğe bağlı) + şablon yedeği + Cloudflare görsel + 5 sektör şablonu
 - [x] Onay & Gönderim: tekil/toplu onay, WhatsApp wa.me, SMTP kuyruğu + saatlik/günlük limit
 - [x] Takip: site ziyareti (bot filtreli), e-posta açılma/tıklama, ret (opt-out) + kara liste
 - [x] Satış, ödemeler, aylık bakım ödemesi otomasyonu, firmanın kendi alan adı alanı
 - [x] Rapor: filtreli huni, kanal başarısı, MRR/tahsilat, ilçe kırılımı, CSV dışa aktarma
 - [x] 23 otomatik test geçiyor, README (cPanel kurulumu dahil)
 - [x] Site şablonları modernleştirildi: sektöre özel hero/hizmet/kapanış varyantları (restoran: bölünmüş hero + menü, güzellik: ortalı hero + liste, oto: koyu hero + karolar), mobil yapışkan Ara/WhatsApp çubuğu, giriş animasyonları
+- [x] Ücretsiz yapı: Cloudflare metin+görsel ortak neuron bütçesi (UTC), Google Places aylık kota sayacı + kısmi arama, Overture CSV içe aktarma (komut + panel), "Doğrulama bekliyor" kapısı, panelden içerik düzenleme, kota göstergeleri
 - [x] Erişilebilirlik: axe-core ile 5 şablon × 9 palet (45 kombinasyon) WCAG 2.1 AA ihlali yok; landmark, atla bağlantısı, odak halkası, 44px dokunma hedefi
 
 ## Doğrulanmadı / gözden geçirilmeli
+
+- [ ] **Cloudflare Llama JSON şema modu:** `llama-3.3-70b-instruct-fp8-fast` modelinin `response_format: json_schema` ve bizim şemayı (enum, additionalProperties:false) kabul ettiği canlıda teyit edilmeli; Türkçe kalitesi ve gerçek neuron tüketimi ölçülmeli (`CLOUDFLARE_NEURONS_PER_IMAGE`, token maliyetleri tahmin).
+- [ ] **Google kota rakamları:** SKU başına ücretsiz 1.000 istek bilgisi resmi sayfadan; hangi SKU'ya düştüğümüz (Text Search Enterprise, Place Details Enterprise+Atmosphere) Cloud Console faturalama raporundan teyit edilmeli. Günlük kota kapakları kurulmalı.
+- [ ] **Overture gerçek dosyası:** `scripts/overture-export.sql` alan adları (`categories.primary`, `operating_status`, `addresses[1]`...) ve `file_import.category_map` anahtarları gerçek sürümle denenmedi; Türkiye kapsamı ve "web sitesi yok" doğruluğu ölçülmeli. Test yalnızca örnek CSV ile yapıldı.
 
 - [ ] **Gerçek API'lerle uçtan uca deneme:** Places, Claude ve Cloudflare hiç gerçek anahtarla çalıştırılmadı. Claude isteği yalnızca sahte anahtarla 401'e kadar gitti. Anahtarlar gelince tek ilçe + tek sektörle küçük bir canlı deneme yap.
 - [ ] **Places alan adları:** `places:searchText` yanıtındaki `nationalPhoneNumber`, `websiteUri`, `businessStatus`, `reviews` vb. alan adları canlı yanıtla teyit edilmeli. Testler sahte yanıtla çalışıyor.

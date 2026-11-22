@@ -73,12 +73,13 @@ class SearchJobResource extends Resource
                 Tables\Columns\TextColumn::make('status')->label('Durum')->badge()
                     ->formatStateUsing(fn ($state) => SearchJob::STATUSES[$state] ?? $state)
                     ->color(fn ($state) => match ($state) {
-                        'completed' => 'success', 'failed' => 'danger', 'running' => 'warning', default => 'gray'
+                        'completed' => 'success', 'partial' => 'warning', 'failed' => 'danger', 'running' => 'warning', default => 'gray'
                     }),
                 Tables\Columns\TextColumn::make('found_count')->label('Bulunan')->numeric(),
                 Tables\Columns\TextColumn::make('qualified_count')->label('Sitesi yok (hedef)')->numeric(),
                 Tables\Columns\TextColumn::make('api_calls')->label('API çağrısı')->numeric(),
                 Tables\Columns\TextColumn::make('error')->label('Hata')->limit(40)->tooltip(fn ($state) => $state)->color('danger'),
+                Tables\Columns\TextColumn::make('notice')->label('Not')->limit(40)->tooltip(fn ($state) => $state)->color('warning'),
             ])
             ->actions([
                 Tables\Actions\Action::make('businesses')

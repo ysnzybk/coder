@@ -5,7 +5,9 @@ namespace App\Jobs;
 use App\Models\Business;
 use App\Models\Site;
 use App\Services\Ai\SiteContentGenerator;
+use App\Services\Images\CloudflareBudgetExceeded;
 use App\Services\Places\BusinessImporter;
+use App\Services\Places\PlacesBudgetExceeded;
 use App\Services\Places\PlacesClient;
 use App\Services\Sites\SlugGenerator;
 use Illuminate\Bus\Queueable;
@@ -20,13 +22,19 @@ class GenerateSiteJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 3;
+    /** Gerçek hatalarda en fazla 3 deneme; ücretsiz kota beklemeleri (release) bu sayıya girmez. */
+    public int $maxExceptions = 3;
 
     public array $backoff = [60, 300];
 
     public int $timeout = 240;
 
     public function __construct(public int $businessId) {}
+
+    public function retryUntil(): \DateTimeInterface
+    {
+        return now()->addDays(3);
+    }
 
     public function handle(
         SiteContentGenerator $generator,
@@ -44,12 +52,23 @@ class GenerateSiteJob implements ShouldQueue
 
         $business->update(['status' => Business::STATUS_GENERATING, 'last_error' => null]);
 
-        if ($business->reviews === null && $places->isConfigured()) {
-            $importer->enrich($business);
-            $business->refresh();
+        if ($business->reviews === null && $business->source === 'google' && $places->isConfigured()) {
+            try {
+                $importer->enrich($business);
+                $business->refresh();
+            } catch (PlacesBudgetExceeded) {
+                // Aylık ücretsiz Places kotası doldu: yorum/saat olmadan devam (sonra "yeniden üret" ile tamamlanabilir).
+            }
         }
 
-        $content = $generator->generate($business);
+        try {
+            $content = $generator->generate($business);
+        } catch (CloudflareBudgetExceeded $e) {
+            // Ücretsiz günlük neuron havuzu doldu: UTC 00:00 sonrasına ertele (hata sayılmaz).
+            $this->release($e->secondsUntilReset);
+
+            return;
+        }
 
         $site = $business->site ?? new Site([
             'business_id' => $business->id,

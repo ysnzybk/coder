@@ -12,7 +12,17 @@ return [
         'region' => 'TR',
         // Text Search en fazla 3 sayfa x 20 sonuç döner.
         'max_pages' => (int) env('GOOGLE_PLACES_MAX_PAGES', 3),
+        // Ücretsiz aylık kota (Enterprise SKU ≈ 1.000 istek) altında kalmak için uygulama içi sert sınırlar.
+        // Google'ın kendi sayacı esastır; bu sınırlar güvenlik payı bırakır. 0 = sınırsız (önerilmez).
+        'monthly_text_limit' => (int) env('GOOGLE_PLACES_MONTHLY_TEXT_LIMIT', 900),
+        'monthly_details_limit' => (int) env('GOOGLE_PLACES_MONTHLY_DETAILS_LIMIT', 900),
     ],
+
+    /*
+    | Site metni sağlayıcısı: cloudflare (ücretsiz, varsayılan) | anthropic (ücretli) | template (AI yok)
+    | Seçilen sağlayıcının anahtarı yoksa otomatik olarak şablon içeriğe düşer.
+    */
+    'ai_provider' => env('LEADGEN_AI_PROVIDER', 'cloudflare'),
 
     /*
     | Claude (Anthropic) — site içerik üretimi
@@ -32,9 +42,16 @@ return [
         'account_id' => env('CLOUDFLARE_ACCOUNT_ID'),
         'token' => env('CLOUDFLARE_API_TOKEN'),
         'model' => env('CLOUDFLARE_IMAGE_MODEL', '@cf/black-forest-labs/flux-1-schnell'),
-        // Ücretsiz günlük kotayı aşmamak için güvenli üst sınır.
-        'daily_limit' => (int) env('CLOUDFLARE_DAILY_IMAGE_LIMIT', 80),
-        'images_per_site' => 3,
+        'text_model' => env('CLOUDFLARE_TEXT_MODEL', '@cf/meta/llama-3.3-70b-instruct-fp8-fast'),
+        'text_max_tokens' => (int) env('CLOUDFLARE_TEXT_MAX_TOKENS', 2200),
+        'image_steps' => (int) env('CLOUDFLARE_IMAGE_STEPS', 4),
+        // Metin + görsel ortak günlük neuron havuzu (ücretsiz 10.000; UTC 00:00'da sıfırlanır). %10 pay bırakılır.
+        'daily_neuron_budget' => (int) env('CLOUDFLARE_DAILY_NEURON_BUDGET', 9000),
+        // Tahmini maliyetler (canlıda gerçek tüketimle ayarlayın)
+        'neurons_per_image' => (float) env('CLOUDFLARE_NEURONS_PER_IMAGE', 120),
+        'neurons_per_1k_input_tokens' => (float) env('CLOUDFLARE_NEURONS_PER_1K_IN', 26.7),
+        'neurons_per_1k_output_tokens' => (float) env('CLOUDFLARE_NEURONS_PER_1K_OUT', 204.8),
+        'images_per_site' => (int) env('CLOUDFLARE_IMAGES_PER_SITE', 3),
     ],
 
     /*
@@ -51,6 +68,26 @@ return [
     'mail' => [
         'per_hour' => (int) env('OUTREACH_MAIL_PER_HOUR', 20),
         'per_day' => (int) env('OUTREACH_MAIL_PER_DAY', 100),
+    ],
+
+    /*
+    | Dosyadan içe aktarma (Overture Maps vb.): kaynak kategorisi → bizim sektör slug'ı.
+    | Anahtarlar Overture "categories.primary" değerleridir; gerçek dosyayla teyit edin.
+    */
+    'file_import' => [
+        'min_confidence' => (float) env('IMPORT_MIN_CONFIDENCE', 0.6),
+        'category_map' => [
+            'pet_store' => 'pet-shop', 'pet_shop' => 'pet-shop', 'pet_supplies' => 'pet-shop',
+            'veterinarian' => 'veteriner', 'animal_hospital' => 'veteriner',
+            'restaurant' => 'restoran', 'turkish_restaurant' => 'restoran', 'fast_food_restaurant' => 'restoran',
+            'cafe' => 'kafe', 'coffee_shop' => 'kafe',
+            'bakery' => 'pastane-firin', 'patisserie_cake_shop' => 'pastane-firin',
+            'hair_salon' => 'kuafor', 'hairdresser' => 'kuafor',
+            'barber' => 'berber', 'barber_shop' => 'berber',
+            'beauty_salon' => 'guzellik-salonu', 'nail_salon' => 'guzellik-salonu',
+            'automotive_repair' => 'oto-servis', 'car_repair' => 'oto-servis',
+            'car_wash' => 'oto-yikama', 'tire_shop' => 'lastikci', 'florist' => 'cicekci',
+        ],
     ],
 
     /*

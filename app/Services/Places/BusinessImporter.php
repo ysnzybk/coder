@@ -22,37 +22,56 @@ class BusinessImporter
         private readonly PlacesClient $places,
     ) {}
 
-    /** @return Business|null yeni oluşturulan ve uygun bulunan firma */
+    /** @return Business|null yeni oluşturulan ve uygun bulunan firma (Google Places yanıtı) */
     public function import(array $place, SearchJob $job, ?int $districtId): ?Business
     {
-        $placeId = $place['id'] ?? null;
+        return $this->importRow(PlacesNormalizer::fromGooglePlace($place), $job, $districtId);
+    }
 
-        if (! $placeId || Business::where('place_id', $placeId)->exists()) {
+    /**
+     * Normalize edilmiş satırdan firma oluşturur (kaynak: Google ya da dosya).
+     *
+     * @return Business|null yeni oluşturulan ve uygun bulunan firma
+     */
+    public function importRow(array $row, SearchJob $job, ?int $districtId): ?Business
+    {
+        $externalId = $row['external_id'] ?? null;
+
+        if (! $externalId || Business::where('place_id', $externalId)->exists()) {
             return null; // daha önce bulunmuş — tekrar işlenmez
         }
 
-        $phoneRaw = $place['internationalPhoneNumber'] ?? $place['nationalPhoneNumber'] ?? null;
-        $website = $place['websiteUri'] ?? null;
+        $website = $row['website'] ?? null;
+        $status = $this->classifier->classify($website);
+
+        // Web sitesi alanı boş ama sosyal medya bağlantısı varsa "sadece sosyal"
+        if ($status === Business::WEBSITE_NONE && ! empty($row['social_url'])) {
+            $status = Business::WEBSITE_SOCIAL_ONLY;
+        }
 
         $business = Business::create([
-            'place_id' => $placeId,
+            'place_id' => $externalId,
+            'source' => $row['source'] ?? 'google',
+            'source_confidence' => $row['confidence'] ?? null,
             'search_job_id' => $job->id,
             'category_id' => $job->category_id,
             'province_id' => $job->province_id,
             'district_id' => $districtId,
-            'name' => $place['displayName']['text'] ?? 'İsimsiz işletme',
-            'address' => $place['formattedAddress'] ?? null,
-            'phone' => TurkishPhone::normalize($phoneRaw) ?? $phoneRaw,
-            'phone_type' => TurkishPhone::type($phoneRaw),
+            'name' => $row['name'],
+            'address' => $row['address'] ?? null,
+            'phone' => TurkishPhone::normalize($row['phone'] ?? null) ?? ($row['phone'] ?? null),
+            'phone_type' => TurkishPhone::type($row['phone'] ?? null),
+            'email' => $row['email'] ?? null,
             'website_raw' => $website,
-            'website_status' => $this->classifier->classify($website),
-            'rating' => $place['rating'] ?? null,
-            'review_count' => $place['userRatingCount'] ?? 0,
-            'types' => $place['types'] ?? [],
-            'lat' => $place['location']['latitude'] ?? null,
-            'lng' => $place['location']['longitude'] ?? null,
-            'maps_url' => $place['googleMapsUri'] ?? null,
-            'business_status' => $place['businessStatus'] ?? null,
+            'social_url' => $row['social_url'] ?? null,
+            'website_status' => $status,
+            'rating' => $row['rating'] ?? null,
+            'review_count' => $row['review_count'] ?? 0,
+            'types' => $row['types'] ?? [],
+            'lat' => $row['lat'] ?? null,
+            'lng' => $row['lng'] ?? null,
+            'maps_url' => $row['maps_url'] ?? null,
+            'business_status' => $row['business_status'] ?? null,
         ]);
 
         return $this->qualify($business) ? $business : null;
@@ -87,12 +106,38 @@ class BusinessImporter
 
         $business->update([
             'contact_channel' => $channel,
-            'status' => $channel === Business::CHANNEL_MANUAL
-                ? Business::STATUS_MANUAL_CONTACT
-                : Business::STATUS_DISCOVERED,
+            // Dosya kaynaklı (açık veri) kayıtlarda "web sitesi yok" bilgisi güvenilir olmayabilir:
+            // önce elle doğrulanır; doğrulanana kadar site üretimi/AI bütçesi harcanmaz.
+            'status' => $business->source === 'file'
+                ? Business::STATUS_NEEDS_VERIFICATION
+                : ($channel === Business::CHANNEL_MANUAL ? Business::STATUS_MANUAL_CONTACT : Business::STATUS_DISCOVERED),
         ]);
 
         return true;
+    }
+
+    /** Doğrulama sonrası: "Gerçekten sitesi yok" → normal akışa al (kanal/durum + site üretimi). */
+    public function confirmNoWebsite(Business $business): void
+    {
+        if ($business->status !== Business::STATUS_NEEDS_VERIFICATION) {
+            return;
+        }
+
+        $business->update(['status' => $business->contact_channel === Business::CHANNEL_MANUAL
+            ? Business::STATUS_MANUAL_CONTACT
+            : Business::STATUS_DISCOVERED]);
+
+        $this->dispatchGenerationIfAutomatic($business->refresh());
+    }
+
+    /** Doğrulama sonrası: "Sitesi var" → elenir. */
+    public function rejectHasWebsite(Business $business): void
+    {
+        $business->update([
+            'status' => Business::STATUS_DISQUALIFIED,
+            'website_status' => Business::WEBSITE_REAL,
+            'disqualify_reason' => 'Web sitesi var (elle doğrulandı)',
+        ]);
     }
 
     /** Yorum ve çalışma saatlerini (yalnızca uygun firmalar için) çeker. */

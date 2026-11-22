@@ -23,6 +23,9 @@ class ListBusinesses extends ListRecords
             'active' => Tab::make('Hedefler')
                 ->badge($count($active))
                 ->modifyQueryUsing(fn (Builder $query) => $query->whereIn('status', $active)),
+            'verify' => Tab::make('Doğrulama bekleyen')
+                ->badge($count([Business::STATUS_NEEDS_VERIFICATION]))
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', Business::STATUS_NEEDS_VERIFICATION)),
             'manual' => Tab::make('Manuel iletişim')
                 ->badge(Business::where('contact_channel', Business::CHANNEL_MANUAL)->whereNotIn('status', [Business::STATUS_WON, Business::STATUS_LOST, Business::STATUS_OPTED_OUT])->count())
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('contact_channel', Business::CHANNEL_MANUAL)->whereNotIn('status', [Business::STATUS_WON, Business::STATUS_LOST, Business::STATUS_OPTED_OUT])),

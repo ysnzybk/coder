@@ -2,16 +2,17 @@
 
 namespace App\Services\Images;
 
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
- * Cloudflare Workers AI (ücretsiz günlük kota) ile görsel üretir ve public diske kaydeder.
+ * Cloudflare Workers AI (ücretsiz günlük neuron havuzu) ile görsel üretir ve public diske kaydeder.
  */
 class CloudflareImageGenerator
 {
+    public function __construct(private readonly CloudflareBudget $budget) {}
+
     public function isConfigured(): bool
     {
         return filled(config('leadgen.cloudflare.account_id')) && filled(config('leadgen.cloudflare.token'));
@@ -19,7 +20,7 @@ class CloudflareImageGenerator
 
     public function remainingToday(): int
     {
-        return max(0, config('leadgen.cloudflare.daily_limit') - (int) Cache::get($this->quotaKey(), 0));
+        return $this->budget->remaining();
     }
 
     /** @return string kaydedilen dosyanın public disk yolu */
@@ -29,8 +30,8 @@ class CloudflareImageGenerator
             throw new RuntimeException('Cloudflare Workers AI bilgileri tanımlı değil (.env).');
         }
 
-        if ($this->remainingToday() <= 0) {
-            throw new QuotaExceededException('Cloudflare günlük görsel kotası doldu.');
+        if (! $this->budget->canSpend($this->budget->imageCost())) {
+            throw new CloudflareBudgetExceeded($this->budget->secondsUntilReset());
         }
 
         $url = sprintf(
@@ -41,18 +42,19 @@ class CloudflareImageGenerator
 
         $response = Http::withToken(config('leadgen.cloudflare.token'))
             ->timeout(90)
-            ->post($url, ['prompt' => $prompt, 'steps' => 6]);
+            ->post($url, ['prompt' => $prompt, 'steps' => config('leadgen.cloudflare.image_steps')]);
 
-        Cache::add($this->quotaKey(), 0, now()->endOfDay());
-        Cache::increment($this->quotaKey());
+        if ($response->status() === 429 || $this->isNeuronLimitError($response->json('errors', []))) {
+            $this->budget->exhaust();
 
-        if ($response->status() === 429) {
-            throw new QuotaExceededException('Cloudflare kota/limit hatası (429).');
+            throw new CloudflareBudgetExceeded($this->budget->secondsUntilReset(), 'Cloudflare kota/limit hatası.');
         }
 
         if ($response->failed() || ! $response->json('success', true)) {
             throw new RuntimeException('Cloudflare görsel hatası: '.$response->status().' '.mb_substr($response->body(), 0, 300));
         }
+
+        $this->budget->spend($this->budget->imageCost());
 
         $base64 = $response->json('result.image');
 
@@ -65,8 +67,8 @@ class CloudflareImageGenerator
         return $path;
     }
 
-    private function quotaKey(): string
+    private function isNeuronLimitError(array $errors): bool
     {
-        return 'cf_images:'.now()->toDateString();
+        return collect($errors)->contains(fn ($e) => str_contains(mb_strtolower(json_encode($e)), 'neuron') || str_contains(mb_strtolower(json_encode($e)), 'daily free allocation'));
     }
 }

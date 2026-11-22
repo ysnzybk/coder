@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\BusinessResource\Pages;
+use App\Jobs\GenerateSiteImagesJob;
 use App\Jobs\GenerateSiteJob;
 use App\Models\Business;
 use App\Models\Category;
@@ -11,6 +12,7 @@ use App\Models\Province;
 use App\Services\Outreach\MessageRenderer;
 use App\Services\Outreach\OutreachService;
 use App\Services\Phone\TurkishPhone;
+use App\Services\Places\BusinessImporter;
 use App\Support\CsvExport;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -46,6 +48,7 @@ class BusinessResource extends Resource
             Business::STATUS_SENT, Business::STATUS_VIEWED, Business::STATUS_REPLIED => 'warning',
             Business::STATUS_FAILED, Business::STATUS_LOST, Business::STATUS_OPTED_OUT => 'danger',
             Business::STATUS_MANUAL_CONTACT => 'primary',
+            Business::STATUS_NEEDS_VERIFICATION => 'warning',
             default => 'gray',
         };
     }
@@ -116,6 +119,7 @@ class BusinessResource extends Resource
                 Tables\Filters\SelectFilter::make('category_id')->label('Sektör')->options(fn () => Category::orderBy('name')->pluck('name', 'id')),
                 Tables\Filters\SelectFilter::make('status')->label('Durum')->options(Business::STATUSES)->multiple(),
                 Tables\Filters\SelectFilter::make('contact_channel')->label('Kanal')->options(Business::CHANNELS),
+                Tables\Filters\SelectFilter::make('source')->label('Kaynak')->options(['google' => 'Google', 'file' => 'Dosya (Overture)', 'manual' => 'Manuel']),
                 Tables\Filters\SelectFilter::make('website_status')->label('Web')->options(['none' => 'Yok', 'social_only' => 'Sadece sosyal', 'real' => 'Var']),
                 Tables\Filters\SelectFilter::make('search_job_id')->label('Arama #')->relationship('searchJob', 'id'),
             ])
@@ -126,8 +130,38 @@ class BusinessResource extends Resource
                     ->color('gray')
                     ->url(fn (Business $r) => $r->site?->url(), shouldOpenInNewTab: true)
                     ->visible(fn (Business $r) => $r->site !== null),
+                Tables\Actions\Action::make('webSearch')
+                    ->label('Web\'de ara')
+                    ->icon('heroicon-o-magnifying-glass')
+                    ->iconButton()
+                    ->tooltip('Web\'de ara (Google)')
+                    ->color('warning')
+                    ->url(fn (Business $r) => 'https://www.google.com/search?q='.urlencode($r->name.' '.($r->district?->name ?? '').' '.($r->province?->name ?? '')), shouldOpenInNewTab: true)
+                    ->visible(fn (Business $r) => $r->status === Business::STATUS_NEEDS_VERIFICATION),
+                Tables\Actions\Action::make('confirmNoSite')
+                    ->label('Sitesi yok → onayla')
+                    ->icon('heroicon-o-check-circle')
+                    ->iconButton()
+                    ->tooltip('Sitesi yok → onayla (site üretimini başlatır)')
+                    ->color('success')
+                    ->visible(fn (Business $r) => $r->status === Business::STATUS_NEEDS_VERIFICATION)
+                    ->action(function (Business $r) {
+                        app(BusinessImporter::class)->confirmNoWebsite($r);
+                        Notification::make()->title('Doğrulandı — normal akışa alındı')->success()->send();
+                    }),
+                Tables\Actions\Action::make('rejectHasSite')
+                    ->label('Sitesi var → ele')
+                    ->icon('heroicon-o-x-circle')
+                    ->iconButton()
+                    ->tooltip('Sitesi var → ele')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->visible(fn (Business $r) => $r->status === Business::STATUS_NEEDS_VERIFICATION)
+                    ->action(fn (Business $r) => app(BusinessImporter::class)->rejectHasWebsite($r)),
                 Tables\Actions\ActionGroup::make([
                     self::generateSiteAction(),
+                    self::editContentAction(),
+                    self::skipImagesAction(),
                     self::addEmailAction(),
                     self::callOutcomeAction(),
                     Tables\Actions\Action::make('replied')
@@ -168,6 +202,23 @@ class BusinessResource extends Resource
                         Notification::make()->title("{$n} firma için site üretimi kuyruğa alındı")->success()->send();
                     })
                     ->deselectRecordsAfterCompletion(),
+                Tables\Actions\BulkAction::make('confirmNoSite')
+                    ->label('Sitesi yok → onayla')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalDescription('Seçili "Doğrulama bekliyor" firmaları için web sitesi olmadığını onaylıyorsunuz; site üretimi başlar (AI/görsel kotası harcar).')
+                    ->action(function (Collection $records) {
+                        $n = 0;
+                        foreach ($records as $r) {
+                            if ($r->status === Business::STATUS_NEEDS_VERIFICATION) {
+                                app(BusinessImporter::class)->confirmNoWebsite($r);
+                                $n++;
+                            }
+                        }
+                        Notification::make()->title("{$n} firma doğrulandı")->success()->send();
+                    })
+                    ->deselectRecordsAfterCompletion(),
                 Tables\Actions\BulkAction::make('csv')
                     ->label('CSV dışa aktar')
                     ->icon('heroicon-o-arrow-down-tray')
@@ -178,7 +229,7 @@ class BusinessResource extends Resource
     public static function canGenerate(Business $r): bool
     {
         return ! in_array($r->status, [
-            Business::STATUS_DISQUALIFIED, Business::STATUS_OPTED_OUT, Business::STATUS_GENERATING, Business::STATUS_WON,
+            Business::STATUS_DISQUALIFIED, Business::STATUS_OPTED_OUT, Business::STATUS_GENERATING, Business::STATUS_WON, Business::STATUS_NEEDS_VERIFICATION,
         ], true);
     }
 
@@ -189,11 +240,51 @@ class BusinessResource extends Resource
             ->icon('heroicon-o-sparkles')
             ->color('primary')
             ->requiresConfirmation()
-            ->modalDescription('AI içerik + görsel üretilir (API kotası harcar).')
+            ->modalDescription('AI içerik + görsel yeniden üretilir (ücretsiz kota harcar). Elle yaptığınız içerik düzenlemeleri silinir.')
             ->visible(fn (Business $r) => self::canGenerate($r))
             ->action(function (Business $r) {
                 GenerateSiteJob::dispatch($r->id);
                 Notification::make()->title('Site üretimi kuyruğa alındı')->success()->send();
+            });
+    }
+
+    private static function editContentAction(): Tables\Actions\Action
+    {
+        return Tables\Actions\Action::make('editContent')
+            ->label('İçeriği düzenle')
+            ->icon('heroicon-o-pencil-square')
+            ->visible(fn (Business $r) => $r->site !== null)
+            ->modalWidth('3xl')
+            ->fillForm(fn (Business $r) => collect($r->site->content ?? [])->only(['hero_title', 'hero_subtitle', 'tagline', 'about', 'review_summary', 'cta_text', 'services'])->all())
+            ->form([
+                Forms\Components\TextInput::make('hero_title')->label('Ana başlık')->required()->maxLength(80),
+                Forms\Components\TextInput::make('hero_subtitle')->label('Alt başlık')->maxLength(170),
+                Forms\Components\TextInput::make('tagline')->label('Üst etiket')->maxLength(80),
+                Forms\Components\Textarea::make('about')->label('Hakkımızda')->rows(4)->maxLength(700),
+                Forms\Components\Textarea::make('review_summary')->label('Yorum özeti')->rows(2)->maxLength(320),
+                Forms\Components\TextInput::make('cta_text')->label('Buton metni')->maxLength(40),
+                Forms\Components\Repeater::make('services')->label('Hizmetler / ürünler')->minItems(1)->maxItems(8)->schema([
+                    Forms\Components\TextInput::make('name')->label('Ad')->required()->maxLength(50),
+                    Forms\Components\TextInput::make('description')->label('Açıklama')->required()->maxLength(200),
+                ])->columns(2)->collapsible(),
+            ])
+            ->action(function (Business $r, array $data) {
+                $r->site->update(['content' => array_merge($r->site->content ?? [], $data, ['_edited' => true])]);
+                Notification::make()->title('İçerik güncellendi')->success()->send();
+            });
+    }
+
+    private static function skipImagesAction(): Tables\Actions\Action
+    {
+        return Tables\Actions\Action::make('skipImages')
+            ->label('Görselsiz hazırla')
+            ->icon('heroicon-o-photo')
+            ->requiresConfirmation()
+            ->modalDescription('Cloudflare günlük ücretsiz kotasını beklemeden site mevcut görsellerle hazır işaretlenir.')
+            ->visible(fn (Business $r) => $r->status === Business::STATUS_GENERATING && $r->site !== null)
+            ->action(function (Business $r) {
+                GenerateSiteImagesJob::dispatch($r->site->id, true);
+                Notification::make()->title('Site görselsiz hazırlanıyor')->success()->send();
             });
     }
 
@@ -207,6 +298,14 @@ class BusinessResource extends Resource
             ->form([Forms\Components\TextInput::make('email')->label('E-posta')->email()->required()])
             ->action(function (Business $r, array $data) {
                 $r->update(['email' => mb_strtolower(trim($data['email']))]);
+
+                // Doğrulama bekleyen firmada yalnızca kanalı güncelle; durumu (ve site üretimini) doğrulama belirler.
+                if ($r->status === Business::STATUS_NEEDS_VERIFICATION) {
+                    $r->update(['contact_channel' => $r->phone_type === 'mobile' ? Business::CHANNEL_WHATSAPP : Business::CHANNEL_EMAIL]);
+                    Notification::make()->title('E-posta kaydedildi')->success()->send();
+
+                    return;
+                }
 
                 // Cep telefonu yoksa kanal e-postaya geçer ve otomatik akışa girer.
                 if ($r->contact_channel === Business::CHANNEL_MANUAL) {

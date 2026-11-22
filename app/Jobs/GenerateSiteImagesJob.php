@@ -4,8 +4,8 @@ namespace App\Jobs;
 
 use App\Models\Business;
 use App\Models\Site;
+use App\Services\Images\CloudflareBudgetExceeded;
 use App\Services\Images\CloudflareImageGenerator;
-use App\Services\Images\QuotaExceededException;
 use App\Services\Outreach\MessageRenderer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -28,7 +28,8 @@ class GenerateSiteImagesJob implements ShouldQueue
     /** Gerçek hatalarda en fazla 3 deneme (kota beklemeleri sayılmaz). */
     public int $maxExceptions = 3;
 
-    public function __construct(public int $siteId) {}
+    /** @param bool $skipImages true: kalan görseller beklenmeden site hazır işaretlenir ("Görselsiz hazırla"). */
+    public function __construct(public int $siteId, public bool $skipImages = false) {}
 
     public function retryUntil(): \DateTimeInterface
     {
@@ -40,7 +41,7 @@ class GenerateSiteImagesJob implements ShouldQueue
         $site = Site::with('business.site')->findOrFail($this->siteId);
         $business = $site->business;
 
-        if ($images->isConfigured()) {
+        if ($images->isConfigured() && ! $this->skipImages) {
             $paths = $site->images ?? [];
             $prompts = array_slice($site->content['image_prompts'] ?? [], 0, config('leadgen.cloudflare.images_per_site'), true);
 
@@ -52,9 +53,9 @@ class GenerateSiteImagesJob implements ShouldQueue
                 try {
                     $paths[$key] = $images->generate($prompt, "sites/{$site->slug}/{$key}.jpg");
                     $site->update(['images' => $paths]);
-                } catch (QuotaExceededException $e) {
-                    Log::info("Görsel kotası doldu, site {$site->id} yarın tamamlanacak.");
-                    $this->release(now()->addDay()->startOfDay()->addMinutes(5));
+                } catch (CloudflareBudgetExceeded $e) {
+                    Log::info("Cloudflare günlük neuron bütçesi doldu, site {$site->id} sıfırlanmadan sonra tamamlanacak.");
+                    $this->release($e->secondsUntilReset);
 
                     return;
                 }

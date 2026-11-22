@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\District;
 use App\Models\SearchJob;
 use App\Services\Places\BusinessImporter;
+use App\Services\Places\PlacesBudgetExceeded;
 use App\Services\Places\PlacesClient;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -31,13 +32,25 @@ class RunSearchJob implements ShouldQueue
         $districts = District::whereIn('id', $job->district_ids ?? [])->get();
         $found = 0;
         $qualified = 0;
+        $notice = null;
 
         foreach ($districts as $district) {
             $query = trim("{$job->category->search_term} {$district->name} {$job->province->name}");
             $bias = $district->lat ? ['lat' => $district->lat, 'lng' => $district->lng, 'radius' => 6000.0] : null;
 
-            $results = $places->searchText($query, $job->category->included_type, $bias);
+            try {
+                $results = $places->searchText($query, $job->category->included_type, $bias);
+            } catch (PlacesBudgetExceeded $e) {
+                $notice = $e->getMessage().' Kalan ilçeler atlandı; yeni ayda aynı aramayı tekrar çalıştırın.';
+
+                break;
+            }
+
             $found += count($results);
+
+            if ($places->truncated) {
+                $notice = "Aylık ücretsiz kota nedeniyle {$district->name} sonuçları eksik kalmış olabilir.";
+            }
 
             foreach ($results as $place) {
                 if (! $this->inDistrict($place, $district->name)) {
@@ -53,7 +66,12 @@ class RunSearchJob implements ShouldQueue
             $job->update(['found_count' => $found, 'qualified_count' => $qualified, 'api_calls' => $places->calls]);
         }
 
-        $job->update(['status' => 'completed', 'finished_at' => now()]);
+        $job->update([
+            'status' => $notice ? 'partial' : 'completed',
+            'notice' => $notice,
+            'api_calls' => $places->calls,
+            'finished_at' => now(),
+        ]);
     }
 
     private function inDistrict(array $place, string $districtName): bool

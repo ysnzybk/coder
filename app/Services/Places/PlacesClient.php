@@ -16,6 +16,11 @@ class PlacesClient
 {
     public int $calls = 0;
 
+    /** Aylık ücretsiz kota nedeniyle sonuçlar yarıda kaldıysa true. */
+    public bool $truncated = false;
+
+    public function __construct(private readonly PlacesBudget $budget) {}
+
     private const SEARCH_FIELDS = [
         'places.id', 'places.displayName', 'places.formattedAddress',
         'places.nationalPhoneNumber', 'places.internationalPhoneNumber',
@@ -43,6 +48,17 @@ class PlacesClient
         $maxPages = max(1, config('leadgen.places.max_pages'));
 
         for ($page = 0; $page < $maxPages; $page++) {
+            try {
+                $this->budget->assertAvailable(PlacesBudget::TEXT);
+            } catch (PlacesBudgetExceeded $e) {
+                if ($places === []) {
+                    throw $e;
+                }
+                $this->truncated = true; // elde edilen sayfalar kullanılır
+
+                break;
+            }
+
             $body = array_filter([
                 'textQuery' => $query,
                 'languageCode' => config('leadgen.places.language'),
@@ -58,6 +74,7 @@ class PlacesClient
 
             $response = $this->request(self::SEARCH_FIELDS)->post('/places:searchText', $body);
             $this->calls++;
+            $this->budget->record(PlacesBudget::TEXT);
 
             if ($response->failed()) {
                 throw new RuntimeException('Places arama hatası: '.$response->status().' '.$response->body());
@@ -77,8 +94,11 @@ class PlacesClient
     /** @return array<string, mixed> */
     public function details(string $placeId): array
     {
+        $this->budget->assertAvailable(PlacesBudget::DETAILS);
+
         $response = $this->request(self::DETAIL_FIELDS)->get('/places/'.urlencode($placeId));
         $this->calls++;
+        $this->budget->record(PlacesBudget::DETAILS);
 
         if ($response->failed()) {
             throw new RuntimeException('Places detay hatası: '.$response->status().' '.$response->body());
