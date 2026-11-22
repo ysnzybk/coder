@@ -44,11 +44,16 @@ return [
         'model' => env('CLOUDFLARE_IMAGE_MODEL', '@cf/black-forest-labs/flux-1-schnell'),
         'text_model' => env('CLOUDFLARE_TEXT_MODEL', '@cf/meta/llama-3.3-70b-instruct-fp8-fast'),
         'text_max_tokens' => (int) env('CLOUDFLARE_TEXT_MAX_TOKENS', 2200),
-        'image_steps' => (int) env('CLOUDFLARE_IMAGE_STEPS', 4),
+        // FLUX-1-schnell 1024x1024: neuron = 19,2 + 38,4 x adım (canlıda ölçüldü: 2 adım=96, 3=134,4, 4=172,8).
+        // 2 adım galeri görselleri için yeterince iyi; hero 3 adım.
+        'image_steps' => (int) env('CLOUDFLARE_IMAGE_STEPS', 2),
+        'hero_image_steps' => (int) env('CLOUDFLARE_HERO_IMAGE_STEPS', 3),
+        // Kaydedilen görseller küçültülüp sıkıştırılır (ham çıktı ~870 KB)
+        'image_max_width' => (int) env('CLOUDFLARE_IMAGE_MAX_WIDTH', 960),
+        'image_quality' => (int) env('CLOUDFLARE_IMAGE_QUALITY', 78),
         // Metin + görsel ortak günlük neuron havuzu (ücretsiz 10.000; UTC 00:00'da sıfırlanır). %10 pay bırakılır.
         'daily_neuron_budget' => (int) env('CLOUDFLARE_DAILY_NEURON_BUDGET', 9000),
-        // Tahmini maliyetler (canlıda gerçek tüketimle ayarlayın)
-        'neurons_per_image' => (float) env('CLOUDFLARE_NEURONS_PER_IMAGE', 120),
+        // Gerçek tüketim API yanıtındaki usage.neurons'tan okunur; aşağıdakiler yalnızca ön kontrol tahminidir.
         'neurons_per_1k_input_tokens' => (float) env('CLOUDFLARE_NEURONS_PER_1K_IN', 26.7),
         'neurons_per_1k_output_tokens' => (float) env('CLOUDFLARE_NEURONS_PER_1K_OUT', 204.8),
         'images_per_site' => (int) env('CLOUDFLARE_IMAGES_PER_SITE', 3),

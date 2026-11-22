@@ -67,7 +67,7 @@ class CloudflareContentGenerator implements SiteContentGenerator
                 'messages' => [['role' => 'system', 'content' => $system], ['role' => 'user', 'content' => $user]],
                 'response_format' => ['type' => 'json_schema', 'json_schema' => ContentSchema::schema()],
                 'max_tokens' => config('leadgen.cloudflare.text_max_tokens'),
-                'temperature' => 0.5,
+                'temperature' => 0.3,
             ]);
 
         $errors = collect($response->json('errors', []));
@@ -86,9 +86,11 @@ class CloudflareContentGenerator implements SiteContentGenerator
         }
 
         $usage = $response->json('result.usage', []);
-        $this->budget->spend($this->budget->textCost((int) ($usage['prompt_tokens'] ?? 1500), (int) ($usage['completion_tokens'] ?? config('leadgen.cloudflare.text_max_tokens') * 0.6)));
+        // Gerçek tüketim yanıtta gelir (usage.neurons); yoksa token sayısından tahmin edilir.
+        $this->budget->spend((float) ($usage['neurons'] ?? $this->budget->textCost((int) ($usage['prompt_tokens'] ?? 1500), (int) ($usage['completion_tokens'] ?? config('leadgen.cloudflare.text_max_tokens') * 0.6))));
 
-        $result = $response->json('result.response');
+        // Yanıt biçimi modele göre değişir: eski biçim result.response, OpenAI uyumlu biçim result.choices[0].message.content
+        $result = $response->json('result.response') ?? $response->json('result.choices.0.message.content');
 
         if (is_string($result)) {
             $result = json_decode($result, true) ?? $this->extractJson($result);

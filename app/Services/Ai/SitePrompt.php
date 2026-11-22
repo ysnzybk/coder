@@ -28,7 +28,10 @@ class SitePrompt
         - palette'i işletmenin sektörü ve havasına göre şunlardan seç: {$palettes}.
         - font_style'ı şunlardan seç: {$fonts}.
         - seo_title en fazla 60, seo_description en fazla 155 karakter.
-        - image_prompts: İngilizce, fotogerçekçi, işletmenin sektörüne ve havasına uygun 3 görsel betimlemesi. Görselde yazı, logo, marka veya tanınabilir kişi yüzü olmasın.
+        - cta_text: en fazla 3 kelimelik kısa bir çağrı (ör. "Hemen Arayın", "Randevu Alın").
+        - image_prompts: İngilizce, fotogerçekçi, 3 görsel betimlemesi. Görüntü üretim modeli yazıyı bozuk çiziyor, bu yüzden YAZI İÇEREBİLECEK sahneler yasak:
+          dükkân dış cephesi/vitrini, tabela, neon, menü tahtası, afiş, ekran, kitap/etiket yakın çekimi, insan yüzü. Bunların yerine yazısız sahneler seç:
+          ürün/yemek/aksesuar yakın çekimi, el ve aletler, mekânın loş iç detayları, doğal ışıklı masa/raf/koltuk düzeni. Her betimleme "close-up" veya "detail" ifadesi içersin.
         PROMPT;
     }
 

@@ -76,6 +76,9 @@ class ContentSchema
             }
         }
 
+        // Görsel betimlemeleri anahtar bazında birleştir (riskli olanlar atılmış, şablondan tamamlanır)
+        $content['image_prompts'] = array_merge($fallback['image_prompts'] ?? [], $content['image_prompts'] ?? []);
+
         if (! isset(Themes::PALETTES[$content['palette']])) {
             $content['palette'] = $fallback['palette'];
         }

@@ -51,7 +51,7 @@ class GenerateSiteImagesJob implements ShouldQueue
                 }
 
                 try {
-                    $paths[$key] = $images->generate($prompt, "sites/{$site->slug}/{$key}.jpg");
+                    $paths[$key] = $images->generate($prompt, "sites/{$site->slug}/{$key}.jpg", $key === 'hero' ? (int) config('leadgen.cloudflare.hero_image_steps') : null);
                     $site->update(['images' => $paths]);
                 } catch (CloudflareBudgetExceeded $e) {
                     Log::info("Cloudflare günlük neuron bütçesi doldu, site {$site->id} sıfırlanmadan sonra tamamlanacak.");

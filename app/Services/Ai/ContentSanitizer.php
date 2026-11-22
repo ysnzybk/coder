@@ -9,6 +9,12 @@ namespace App\Services\Ai;
  */
 class ContentSanitizer
 {
+    /** Görsel modeline eklenen ortak sonek (FLUX negatif istemi desteklemez; yalnızca zayıf bir ipucu). */
+    public const IMAGE_SUFFIX = ', close-up detail, no text, no signs, no lettering, no logo, no watermark';
+
+    /** Yazı üretme riski yüksek sahneler: bu kelimeleri içeren betimleme güvenli şablon betimlemesiyle değiştirilir. */
+    private const RISKY_IMAGE_WORDS = '/\b(storefront|shopfront|shop front|facade|façade|exterior|outside|signboard|signage|sign|neon|menu board|menu|poster|banner|billboard|label|logo|lettering|text|screen|book|face|portrait|person|people|man|woman|chef|customer)\b/i';
+
     private const LIMITS = [
         'hero_title' => 80, 'hero_subtitle' => 170, 'tagline' => 80, 'about' => 700, 'review_summary' => 320,
         'cta_text' => 40, 'seo_title' => 60, 'seo_description' => 155,
@@ -25,6 +31,11 @@ class ContentSanitizer
             }
         }
 
+        // Buton metni kısa olmalı; uzun ve kesilmiş metin yerine şablondaki varsayılan kullanılır.
+        if (isset($out['cta_text']) && (mb_strlen($out['cta_text']) > 30 || str_contains($out['cta_text'], '…'))) {
+            unset($out['cta_text']);
+        }
+
         foreach (['palette', 'font_style'] as $key) {
             if (isset($raw[$key]) && is_string($raw[$key])) {
                 $out[$key] = trim($raw[$key]);
@@ -37,12 +48,12 @@ class ContentSanitizer
 
         if (isset($raw['image_prompts']) && is_array($raw['image_prompts'])) {
             foreach (['hero', 'gallery_1', 'gallery_2'] as $k) {
-                if (isset($raw['image_prompts'][$k]) && is_string($raw['image_prompts'][$k]) && trim($raw['image_prompts'][$k]) !== '') {
-                    $out['image_prompts'][$k] = mb_substr(trim($raw['image_prompts'][$k]), 0, 300).', no text, no logo, no watermark';
+                $prompt = $raw['image_prompts'][$k] ?? null;
+
+                // Riskli ya da boş betimlemeler atlanır; eksikler şablon betimlemesinden tamamlanır (ContentSchema::normalize)
+                if (is_string($prompt) && trim($prompt) !== '' && ! preg_match(self::RISKY_IMAGE_WORDS, $prompt)) {
+                    $out['image_prompts'][$k] = mb_substr(trim($prompt), 0, 300).self::IMAGE_SUFFIX;
                 }
-            }
-            if (count($out['image_prompts'] ?? []) < 3) {
-                unset($out['image_prompts']); // eksikse tamamı şablondan gelsin
             }
         }
 

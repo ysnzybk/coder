@@ -19,7 +19,7 @@ class TemplateContentGenerator implements SiteContentGenerator
                 ['Bakım Ürünleri', 'Şampuan, tarak ve hijyen ürünleriyle dostunuzun bakımı.'],
                 ['Akvaryum & Kafes', 'Akvaryum, kafes ve ekipmanlarında doğru ürün tavsiyesi.'],
             ],
-            'image' => ['cozy pet shop interior with shelves of pet food and toys, warm light, photorealistic', 'happy golden retriever and cat sitting together, soft studio light, photorealistic', 'colorful pet accessories collars and toys arranged on wooden table, photorealistic'],
+            'image' => ['cozy pet shop interior with shelves of pet food and toys, warm light, photorealistic', 'close-up of colorful dog toys and treats arranged on a wooden shelf, photorealistic', 'colorful pet accessories collars and toys arranged on wooden table, photorealistic'],
         ],
         'restoran' => [
             'palette' => 'gunbatimi', 'font' => 'klasik',
@@ -39,7 +39,7 @@ class TemplateContentGenerator implements SiteContentGenerator
                 ['Bakım', 'Saç ve cilt bakım uygulamaları.'],
                 ['Özel Gün', 'Düğün, nişan ve özel günler için hazırlık.'],
             ],
-            'image' => ['modern elegant hair salon interior with mirrors and chairs, bright soft light, photorealistic', 'hairdresser styling hair in a salon, close-up of hands and tools, photorealistic', 'beauty care products and brushes arranged neatly, pastel background, photorealistic'],
+            'image' => ['modern elegant hair salon interior with mirrors and chairs, bright soft light, photorealistic', 'close-up of scissors, comb and brushes on a clean salon counter, photorealistic', 'beauty care products and brushes arranged neatly, pastel background, photorealistic'],
         ],
         'oto' => [
             'palette' => 'grafit', 'font' => 'guclu',
@@ -49,7 +49,7 @@ class TemplateContentGenerator implements SiteContentGenerator
                 ['Lastik & Balans', 'Lastik değişimi, rot ve balans.'],
                 ['Fren & Süspansiyon', 'Güvenli sürüş için fren ve süspansiyon kontrolleri.'],
             ],
-            'image' => ['clean modern auto repair workshop with car on lift, bright light, photorealistic', 'mechanic hands working on car engine with tools, photorealistic', 'row of new car tires in a tire shop, photorealistic'],
+            'image' => ['clean modern auto repair workshop with car on lift, bright light, photorealistic', 'close-up of tools neatly arranged on a clean workshop bench, photorealistic', 'close-up of a stack of new car tires, shallow depth of field, photorealistic'],
         ],
         'genel' => [
             'palette' => 'okyanus', 'font' => 'modern',
@@ -58,7 +58,7 @@ class TemplateContentGenerator implements SiteContentGenerator
                 ['Danışmanlık', 'Doğru seçimi yapmanız için yanınızdayız.'],
                 ['Hızlı Destek', 'Sorularınıza hızlı dönüş.'],
             ],
-            'image' => ['welcoming small local business storefront in a turkish street, daylight, photorealistic', 'friendly shop interior with organized shelves, warm light, photorealistic', 'happy customer being served at a local shop counter, photorealistic'],
+            'image' => ['tidy small shop interior with wooden shelves and soft daylight, photorealistic', 'neatly arranged products on a wooden counter, shallow depth of field, photorealistic', 'warm lamp light over a clean checkout counter, close-up, photorealistic'],
         ],
     ];
 
@@ -94,9 +94,9 @@ class TemplateContentGenerator implements SiteContentGenerator
             'seo_title' => "{$business->name} | {$category} - {$place}",
             'seo_description' => "{$business->name}: {$place} bölgesinde {$category}. Adres, telefon ve çalışma saatleri.",
             'image_prompts' => [
-                'hero' => $p['image'][0],
-                'gallery_1' => $p['image'][1],
-                'gallery_2' => $p['image'][2],
+                'hero' => $p['image'][0].ContentSanitizer::IMAGE_SUFFIX,
+                'gallery_1' => $p['image'][1].ContentSanitizer::IMAGE_SUFFIX,
+                'gallery_2' => $p['image'][2].ContentSanitizer::IMAGE_SUFFIX,
             ],
             '_source' => 'template',
         ];

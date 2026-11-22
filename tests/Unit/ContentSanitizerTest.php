@@ -17,7 +17,7 @@ class ContentSanitizerTest extends TestCase
                 ['name' => '', 'description' => 'Adı yok, atılmalı'],
                 'bozuk',
             ],
-            'image_prompts' => ['hero' => 'a cozy shop', 'gallery_1' => 'dog', 'gallery_2' => 'cat'],
+            'image_prompts' => ['hero' => 'cozy shelves close-up', 'gallery_1' => 'dog toys detail', 'gallery_2' => 'cat treats detail'],
         ]);
 
         $this->assertStringNotContainsString('0532', $clean['about']);
@@ -26,14 +26,20 @@ class ContentSanitizerTest extends TestCase
         $this->assertLessThanOrEqual(700, mb_strlen($clean['about']));
         $this->assertSame('Pati Dostu', $clean['hero_title']);
         $this->assertCount(1, $clean['services']);
-        $this->assertStringContainsString('no text, no logo', $clean['image_prompts']['hero']);
+        $this->assertStringContainsString('no signs', $clean['image_prompts']['hero']);
     }
 
-    public function test_incomplete_image_prompts_are_dropped_so_template_fills_them(): void
+    public function test_risky_image_prompts_are_dropped_and_good_ones_kept(): void
     {
-        $clean = (new ContentSanitizer)->clean(['image_prompts' => ['hero' => 'x'], 'services' => 'yanlış tür']);
+        $clean = (new ContentSanitizer)->clean(['image_prompts' => [
+            'hero' => 'restaurant storefront with a neon sign at night',
+            'gallery_1' => 'close-up of fresh bread and olives on a wooden table',
+            'gallery_2' => '',
+        ], 'services' => 'yanlış tür', 'cta_text' => 'Sipariş vermek veya rezervasyon yapmak için hemen tıklayın']);
 
-        $this->assertArrayNotHasKey('image_prompts', $clean);
+        $this->assertSame(['gallery_1'], array_keys($clean['image_prompts']));
+        $this->assertStringContainsString('no signs', $clean['image_prompts']['gallery_1']);
         $this->assertArrayNotHasKey('services', $clean);
+        $this->assertArrayNotHasKey('cta_text', $clean, 'Uzun buton metni atılır, şablondaki varsayılan kullanılır');
     }
 }

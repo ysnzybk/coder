@@ -67,7 +67,7 @@ API anahtarları olmadan da çalışır: Cloudflare yoksa şablon içerik ve gö
 | WhatsApp | wa.me bağlantısı, elle gönderim | — |
 
 Panel → **Ayarlar → Genel ayarlar → Ücretsiz kota kullanımı** bölümünde bu ayki Google ve bugünkü Cloudflare tüketimi görünür.
-Kota rakamları zamanla değişebilir; tümü `.env`'den ayarlanır. Cloudflare neuron sayacı **tahmindir** (gerçek tüketimle `CLOUDFLARE_NEURONS_PER_IMAGE` vb. ayarlayın); aşılırsa Cloudflare isteği reddeder, ücret çıkmaz.
+Kota rakamları zamanla değişebilir; tümü `.env`'den ayarlanır. Cloudflare neuron sayacı API yanıtındaki gerçek `usage.neurons` değerini toplar (ön kontrol için formül kullanılır); bütçe aşılırsa Cloudflare isteği reddeder, ücret çıkmaz. Ölçülen tüketim: metin ≈ 70–145 neuron, görsel (1024², FLUX) 2 adım = 96, 3 adım = 134, 4 adım = 173 → site başına ≈ 470 neuron, günde ≈ 19 site.
 
 ### Google Places: ücretsiz kalmak için (önemli)
 Places API'yi kullanmak için faturalandırma hesabı (kart) gerekir; ücretsiz kota aşılırsa ücret çıkar. Bunu önlemek için:

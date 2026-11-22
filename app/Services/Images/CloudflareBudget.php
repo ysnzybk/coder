@@ -50,9 +50,10 @@ class CloudflareBudget
         return max(60, (int) now()->diffInSeconds($this->resetAt(), true) + 120); // 2 dk pay
     }
 
-    public function imageCost(): float
+    /** FLUX-1-schnell 1024x1024 (4 karo): 4x4,8 + 4x9,6 x adım. Canlıda ölçülen: 2 adım=96, 3=134,4, 4=172,8. */
+    public function imageCost(?int $steps = null): float
     {
-        return (float) config('leadgen.cloudflare.neurons_per_image');
+        return 19.2 + 38.4 * ($steps ?? (int) config('leadgen.cloudflare.image_steps'));
     }
 
     public function textCost(int $inputTokens, int $outputTokens): float

@@ -35,7 +35,7 @@ Stack: Laravel 12 · Filament 3 · MySQL (canlı) / SQLite (local) · Google Pla
 ## 3. Engeller (sizden gerekenler)
 
 - [ ] **Alan adı** (`APP_URL`) kararı.
-- [ ] **Cloudflare hesabı** (ücretsiz, kart gerekmez): `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` (Workers AI: Read/Edit). Metin ve görsel için tek anahtar.
+- [x] **Cloudflare hesabı** bağlandı (2026-11-22). Token bu oturumun kişisel ortamına (`coder`, izinli host `api.cloudflare.com`) güvenli şekilde kaydedildi, proxy ekliyor; yerel `.env`'de `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN=proxy-injected`. **Canlı (cPanel) `.env`'ye gerçek token'ı siz girmelisiniz.** Yeni oturumlarda `coder` ortamını seçin (token orada kayıtlı).
 - [ ] **Google Places API anahtarı** (`GOOGLE_PLACES_API_KEY`): Cloud'da "Places API (New)" etkin olmalı. Kart gerekir. **Günlük kota kapakları kurulmadan canlıya çıkılmamalı** (bkz. README → Ücretsiz yapı). İstenmezse tamamen Overture ile devam edilebilir.
 - [ ] **SMTP bilgileri** ve sağlayıcının günlük gönderim limiti.
 - [ ] ~~Anthropic API anahtarı~~ gerekmiyor (isteğe bağlı, ücretli).
@@ -65,10 +65,12 @@ Stack: Laravel 12 · Filament 3 · MySQL (canlı) / SQLite (local) · Google Pla
 
 Hiçbir dış servis gerçek anahtarla çalıştırılmadı; testler `Http::fake` ve örnek CSV ile yapıldı. Anahtarlar gelince **tek ilçe + tek sektörle küçük bir canlı deneme** yapılmalı:
 
-- [ ] **Cloudflare Llama JSON şema modu:** `@cf/meta/llama-3.3-70b-instruct-fp8-fast` modelinin `response_format: json_schema` ve şemamızı (enum, `additionalProperties:false`, iç içe diziler) kabul ettiği teyit edilmeli. Kabul etmezse şemayı sadeleştir ya da modeli değiştir (`CLOUDFLARE_TEXT_MODEL`).
-- [ ] **Türkçe metin kalitesi** (Llama, Claude'un altında olabilir): örnekleri oku; zayıfsa `ContentSanitizer`/prompt'u sıkılaştır ya da Gemini/Groq gibi başka ücretsiz sağlayıcı ekle. Elle düzeltme yolu hazır.
-- [ ] **Gerçek neuron tüketimi:** metin ve görsel maliyetleri tahmin (`CLOUDFLARE_NEURONS_PER_IMAGE=120`, token başına neuron). Gerçek tüketimle ayarla; günde kaç site çıktığını ölç (tahmin 20–40).
-- [ ] **FLUX yanıt biçimi** (`result.image` base64) ve `steps` parametresi; görsel boyutu/kırpma şablonlarda nasıl görünüyor.
+- [x] **Cloudflare canlı deneme (2026-11-22):** token geçerli; Llama 3.3 70B **JSON şema modunu kabul etti** (≈17–19 sn/site, gerçek ≈ 145 neuron). Yanıt biçimi OpenAI uyumlu (`result.choices[0].message.content`); kod `result.response` ile ikisini de okuyor. Gerçek tüketim yanıttaki `usage.neurons` ile sayılıyor.
+  - Model karşılaştırması (aynı prompt): **Llama 3.3 70B** iyi ama sıcaklık 0.5'te küçük dil hataları ("kapalıız"), 0.3'e düşürüldü; **Mistral Small 3.1 24B** daha akıcı ve yarı fiyat (≈70 neuron) ama "özel menümüz mevcut" gibi uydurma iddialar ekledi; **Llama 4 Scout** 109 sn sürdü ve soru/cevapları karıştırdı; **Gemma 3 12B** hesapta erişime kapalı (403). Karar: Llama 3.3 70B varsayılan (`CLOUDFLARE_TEXT_MODEL` ile değişir).
+  - **FLUX-1-schnell:** 1024×1024 JPEG (~870 KB), ≈6 sn. Neuron = 19,2 + 38,4 × adım (2 adım 96, 3 adım 134,4, 4 adım 172,8). 2 adım görsel kalitesi yeterli → galeri 2, hero 3 adım. Kaydederken 960 px'e küçültülüp q78 sıkıştırılıyor (~100–170 KB).
+  - **Bulgu:** FLUX bozuk yazılı tabela/neon üretiyor ("Obedirinni", "Lez Zetti"). `no text` ipucu işe yaramıyor. Çözüm: prompt'ta yazı içerebilecek sahneler (dış cephe, tabela, menü, insan yüzü...) yasak; riskli betimleme otomatik atılıp güvenli şablon betimlemesiyle değiştiriliyor; betimlemeler "close-up/detail" odaklı. Canlıda yeniden üretilen demo sitede bozuk yazı kalmadı.
+  - Site başına ≈ 470 neuron (metin ≈145 + görseller 134+96+96) → günlük 9.000 bütçeyle **≈ 19 site/gün**.
+  - Hâlâ yapılacak: birkaç farklı sektörde (kuaför, oto, pet shop) canlı üretim kalitesine bak; Cloudflare panelindeki kullanım ekranıyla sayaç karşılaştır.
 - [ ] **Google kota rakamları:** SKU başına ücretsiz 1.000 istek bilgisi 2026 tarihli bir kaynakla doğrulanamadı. Hangi SKU'ya düştüğümüz (Text Search Enterprise, Place Details Enterprise+Atmosphere) Cloud Console faturalama raporundan teyit edilmeli.
 - [ ] **Places alan adları:** `places:searchText` yanıtındaki `nationalPhoneNumber`, `internationalPhoneNumber`, `websiteUri`, `businessStatus`, `reviews`, `regularOpeningHours` vb. canlı yanıtla teyit edilmeli.
 - [ ] **Places `includedType` değerleri** (`pet_store`, `hair_care`, `barber_shop`, `car_repair`, `florist`...): geçersiz tür aramayı hataya düşürebilir; her sektör için dene, gerekirse Sektörler ekranından boşalt.
@@ -77,7 +79,7 @@ Hiçbir dış servis gerçek anahtarla çalıştırılmadı; testler `Http::fake
 - [ ] **E-posta teslim edilebilirliği:** kendi SMTP + takip pikseli spam'e düşebilir; SPF/DKIM/DMARC, küçük hacimle başlama, Gmail kullanılıyorsa uygulama şifresi ve günlük limit.
 - [ ] **Rapor ekranı** (Dashboard, widget'lar, filtreler) açılıyor ve hata vermiyor ama ekran görüntüsü incelenmedi; az veriyle doğru rakam gösterip göstermediği kontrol edilmeli.
 - [ ] **Firmalar tablosu** dar ekranda taşıyordu; bazı sütunlar varsayılan gizli, doğrulama eylemleri ikon butona çevrildi; tekrar bakılmalı.
-- [ ] **Gerçek görsellerle şablonlar:** şablonlar şu an yalnızca GD ile üretilen renkli yer tutucularla görüldü. Gerçek FLUX görselleriyle (kırpma, açık/koyu zemin) bir kez daha bakılmalı.
+- [ ] **Gerçek görsellerle şablonlar:** restoran şablonu gerçek FLUX görselleriyle masaüstünde kontrol edildi ve iyi görünüyor; kuaför, oto, pet shop, genel şablonları ve mobil görünüm gerçek görselle henüz bakılmadı.
 - [ ] Google haritası embed'i sandbox'ta internet olmadığı için hiç görülemedi.
 
 ## 6. Bilinen eksikler / teknik borç
@@ -138,6 +140,7 @@ php artisan serve --host=127.0.0.1 --port=8000     # /admin
 - Bu ortamda dış internet yok (harita, Google, Cloudflare erişilemez); `npm` kayıt defteri erişilebilir (axe-core buradan kuruldu).
 - Playwright hazır; ekran görüntüsü alırken `html{scroll-behavior:smooth}` yüzünden betikte `scrollTo({behavior:'instant'})` kullanın, aksi halde `.reveal` bölümleri boş görünür (sitede hata yok).
 - Filament seçim kutuları Choices.js; Playwright'ta `.choices` tıklayıp metin yazın.
+- `php artisan tinker` dosya yolu alınca etkileşimli kabuğa girip takılır; betik çalıştırmak için `tinker --execute="$(cat betik.php)"` kullanın.
 - Yerel demo admin: `admin@example.com` / `secret123` (yalnızca local DB, repo'da yok).
 
 **Skiller**

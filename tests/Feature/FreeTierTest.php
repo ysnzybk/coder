@@ -16,6 +16,7 @@ use App\Services\Ai\SiteContentGenerator;
 use App\Services\Ai\TemplateContentGenerator;
 use App\Services\Images\CloudflareBudget;
 use App\Services\Images\CloudflareBudgetExceeded;
+use App\Services\Images\CloudflareImageGenerator;
 use App\Services\Places\BusinessImporter;
 use App\Services\Places\PlacesBudget;
 use App\Services\Places\PlacesBudgetExceeded;
@@ -28,6 +29,7 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class FreeTierTest extends TestCase
@@ -176,6 +178,31 @@ class FreeTierTest extends TestCase
 
         config(['leadgen.ai_provider' => 'template']);
         $this->assertInstanceOf(TemplateContentGenerator::class, app(SiteContentGenerator::class));
+    }
+
+    public function test_image_is_resized_compressed_and_real_neurons_are_counted(): void
+    {
+        $this->cloudflareOn();
+        Storage::fake('public');
+
+        $gd = imagecreatetruecolor(1024, 1024);
+        imagefilledrectangle($gd, 0, 0, 1024, 1024, imagecolorallocate($gd, 200, 90, 40));
+        ob_start();
+        imagejpeg($gd, null, 95);
+        $raw = ob_get_clean();
+
+        Http::fake(['api.cloudflare.com/*' => Http::response(['success' => true, 'result' => ['image' => base64_encode($raw), 'usage' => ['neurons' => 134.4]]])]);
+
+        $path = app(CloudflareImageGenerator::class)->generate('a shop', 'sites/x/hero.jpg', 3);
+
+        Storage::disk('public')->assertExists($path);
+        [$w] = getimagesizefromstring(Storage::disk('public')->get($path));
+        $this->assertSame(960, $w);
+        $this->assertSame(135, app(CloudflareBudget::class)->used(), 'Gerçek usage.neurons (134,4 → 135) sayılmalı');
+        Http::assertSent(fn ($r) => $r['steps'] === 3);
+
+        $this->assertEqualsWithDelta(134.4, app(CloudflareBudget::class)->imageCost(3), 0.01);
+        $this->assertEqualsWithDelta(96.0, app(CloudflareBudget::class)->imageCost(2), 0.01);
     }
 
     // ---------- Google Places ücretsiz kota ----------
