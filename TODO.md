@@ -24,6 +24,8 @@ Son güncelleme: 2026-11-22 · Dal: `claude/local-business-website-builder-rwkah
 - [x] Satış, ödemeler, aylık bakım ödemesi otomasyonu, firmanın kendi alan adı alanı
 - [x] Rapor: filtreli huni, kanal başarısı, MRR/tahsilat, ilçe kırılımı, CSV dışa aktarma
 - [x] 23 otomatik test geçiyor, README (cPanel kurulumu dahil)
+- [x] Site şablonları modernleştirildi: sektöre özel hero/hizmet/kapanış varyantları (restoran: bölünmüş hero + menü, güzellik: ortalı hero + liste, oto: koyu hero + karolar), mobil yapışkan Ara/WhatsApp çubuğu, giriş animasyonları
+- [x] Erişilebilirlik: axe-core ile 5 şablon × 9 palet (45 kombinasyon) WCAG 2.1 AA ihlali yok; landmark, atla bağlantısı, odak halkası, 44px dokunma hedefi
 
 ## Doğrulanmadı / gözden geçirilmeli
 
@@ -31,13 +33,16 @@ Son güncelleme: 2026-11-22 · Dal: `claude/local-business-website-builder-rwkah
 - [ ] **Places alan adları:** `places:searchText` yanıtındaki `nationalPhoneNumber`, `websiteUri`, `businessStatus`, `reviews` vb. alan adları canlı yanıtla teyit edilmeli. Testler sahte yanıtla çalışıyor.
 - [ ] **Places `includedType` değerleri** (`pet_store`, `hair_care`, `barber_shop` vb.): geçersiz bir tür aramayı hataya düşürebilir. Canlıda her sektör için kontrol et; gerekirse panelden boşalt.
 - [ ] **Cloudflare FLUX yanıt biçimi** (`result.image` base64) ve `steps` parametresi canlıda teyit edilmeli.
-- [ ] **Mobil site ekran görüntüsü** alındı ama incelenmedi; ayrıca diğer 4 şablon (restoran, güzellik, oto, genel) için görsel kontrol yapılmadı.
 - [ ] **Rapor ekranı** (Dashboard, widget'lar, filtreler) açılıyor ve hata vermiyor ama ekran görüntüsü incelenmedi. Veri azken doğru rakam gösterip göstermediği kontrol edilmeli.
 - [ ] **Firmalar tablosu** dar ekranda taşıyordu; bazı sütunlar varsayılan gizli yapıldı, tekrar bakılmalı.
 - [ ] **cPanel dağıtımı** hiç denenmedi (document root, `storage:link`, cron, AutoSSL).
 - [ ] **E-posta teslim edilebilirliği:** kendi SMTP + takip pikseli spam'e düşebilir. SPF/DKIM/DMARC ayarları ve küçük hacimle başlama gerekli.
 
 ## Bilinen eksikler
+
+- [ ] Şablon görselleri Cloudflare yokken GD yer tutucularıyla (yalnızca demo) denendi; gerçek FLUX görselleriyle (kırpma, aydınlık/karanlık) canlıda bir kez daha bakılmalı.
+- [ ] Harita (Google embed) sandbox'ta internet olmadığı için görülemedi.
+- [ ] `color-mix()` kullanılıyor; çok eski tarayıcılarda bazı yumuşak zeminler düz görünür.
 
 - [ ] Claude içerik üretmeyi reddederse şablon içeriğe düşüyor; Anthropic tarafında otomatik model geçişi (`fallbacks`) eklenmedi (PHP SDK bağlaması doğrulanamadı).
 - [ ] Panelde kullanıcı yönetimi yok; admin `make:filament-user` veya `ADMIN_EMAIL`/`ADMIN_PASSWORD` + seed ile oluşturuluyor.

@@ -1,4 +1,5 @@
 @php
+    $variant = \App\Services\Sites\Themes::variant($site->template);
     $services = $c['services'] ?? [];
     $highlights = $c['highlights'] ?? [];
     $faq = $c['faq'] ?? [];
@@ -22,12 +23,15 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?{{ $font['query'] }}&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('css/site.css') }}?v=1">
+    <script>document.documentElement.classList.add('js')</script>
+    <link rel="stylesheet" href="{{ asset('css/site.css') }}?v=2">
     <style>
         :root {
             --primary: {{ $palette['primary'] }}; --primary-dark: {{ $palette['primary_dark'] }};
             --accent: {{ $palette['accent'] }}; --bg: {{ $palette['bg'] }}; --surface: {{ $palette['surface'] }};
             --text: {{ $palette['text'] }}; --muted: {{ $palette['muted'] }};
+            --on-primary: {{ $palette['on_primary'] }}; --on-accent: {{ $palette['on_accent'] }};
+            --hero-a: {{ $palette['hero_a'] }}; --hero-b: {{ $palette['hero_b'] }}; --on-hero: {{ $palette['on_hero'] }};
             --font-heading: '{{ $font['heading'] }}', system-ui, sans-serif; --font-body: '{{ $font['body'] }}', system-ui, sans-serif;
         }
     </style>
@@ -43,15 +47,16 @@
     ]), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
 </head>
 <body class="tpl-{{ $site->template }}">
+<a class="skip" href="#icerik">İçeriğe geç</a>
 
 @if ($isPreview)
-    <div class="preview-bar">Bu sayfa <strong>{{ $business->name }}</strong> için hazırlanmış bir önizlemedir.</div>
+    <aside class="preview-bar" aria-label="Önizleme bilgisi">Bu sayfa <strong>{{ $business->name }}</strong> için hazırlanmış bir önizlemedir.</aside>
 @endif
 
 <header class="nav">
     <div class="container nav-inner">
         <a href="#" class="brand">{{ $business->name }}</a>
-        <nav class="nav-links">
+        <nav class="nav-links" aria-label="Sayfa bölümleri">
             <a href="#hizmetler">{{ $labels['services'] }}</a>
             <a href="#hakkimizda">Hakkımızda</a>
             <a href="#iletisim">İletişim</a>
@@ -60,28 +65,16 @@
     </div>
 </header>
 
-<section class="hero {{ isset($images['hero']) ? 'has-image' : '' }}" @isset($images['hero']) style="background-image:url('{{ $images['hero'] }}')" @endisset>
-    <div class="hero-overlay"></div>
-    <div class="container hero-content">
-        @if (!empty($c['tagline']))<p class="eyebrow">{{ $c['tagline'] }}</p>@endif
-        <h1>{{ $c['hero_title'] ?? $business->name }}</h1>
-        <p class="lead">{{ $c['hero_subtitle'] ?? '' }}</p>
-        <div class="hero-actions">
-            <a class="btn btn-accent" href="{{ $ctaHref }}">{{ $c['cta_text'] ?? $labels['cta'] }}</a>
-            <a class="btn btn-ghost" href="#hizmetler">{{ $labels['services'] }}</a>
-        </div>
-        @if ($business->rating)
-            <p class="rating-pill">★ {{ number_format($business->rating, 1, ',', '') }} · Google'da {{ $business->review_count }} değerlendirme</p>
-        @endif
-    </div>
-</section>
+<main id="icerik">
+@include('sites.sections.hero-'.$variant['hero'])
 
 @if (count($highlights))
-<section class="highlights">
+<section class="highlights" aria-labelledby="oneCikanlar">
+    <h2 id="oneCikanlar" class="sr-only">Öne çıkanlar</h2>
     <div class="container grid-3">
         @foreach ($highlights as $h)
             <div class="card highlight">
-                <div class="icon">{{ $h['icon'] ?? '•' }}</div>
+                <div class="icon" aria-hidden="true">{{ $h['icon'] ?? '•' }}</div>
                 <h3>{{ $h['title'] }}</h3>
                 <p>{{ $h['text'] }}</p>
             </div>
@@ -108,31 +101,10 @@
 </section>
 
 @if (count($services))
-<section id="hizmetler" class="section alt">
-    <div class="container">
-        <p class="eyebrow center">{{ $place }}</p>
-        <h2 class="center">{{ $labels['services'] }}</h2>
-        <div class="grid-services">
-            @foreach ($services as $s)
-                <div class="card service">
-                    <h3>{{ $s['name'] }}</h3>
-                    <p>{{ $s['description'] }}</p>
-                </div>
-            @endforeach
-        </div>
-    </div>
-</section>
+    @include('sites.sections.services-'.$variant['services'])
 @endif
 
-@isset($images['gallery_2'])
-<section class="banner" style="background-image:url('{{ $images['gallery_2'] }}')">
-    <div class="banner-overlay"></div>
-    <div class="container banner-content">
-        <h2>{{ $c['cta_text'] ?? $labels['cta'] }}</h2>
-        <a class="btn btn-accent" href="{{ $ctaHref }}">{{ $whatsApp ? 'WhatsApp’tan Yazın' : 'Hemen Arayın' }}</a>
-    </div>
-</section>
-@endisset
+@include('sites.sections.closing-'.$variant['closing'])
 
 @if ($reviews->count() || !empty($c['review_summary']))
 <section class="section">
@@ -142,7 +114,7 @@
         <div class="grid-3 reviews">
             @foreach ($reviews as $r)
                 <figure class="card review">
-                    <div class="stars">{{ str_repeat('★', (int) ($r['rating'] ?? 5)) }}</div>
+                    <div class="stars" role="img" aria-label="{{ (int) ($r['rating'] ?? 5) }} yıldız">{{ str_repeat('★', (int) ($r['rating'] ?? 5)) }}</div>
                     <blockquote>“{{ \Illuminate\Support\Str::limit($r['text'], 260) }}”</blockquote>
                     <figcaption>{{ $r['author'] }} · Google yorumu</figcaption>
                 </figure>
@@ -158,11 +130,11 @@
             <p class="eyebrow">İletişim</p>
             <h2>Bize Ulaşın</h2>
             <ul class="contact-list">
-                @if ($business->address)<li><span>📍</span>{{ $business->address }}</li>@endif
-                @if ($phoneDisplay)<li><span>📞</span><a href="tel:{{ $phoneTel }}">{{ $phoneDisplay }}</a></li>@endif
-                @if ($business->email)<li><span>✉️</span><a href="mailto:{{ $business->email }}">{{ $business->email }}</a></li>@endif
+                @if ($business->address)<li><span aria-hidden="true">📍</span>{{ $business->address }}</li>@endif
+                @if ($phoneDisplay)<li><span aria-hidden="true">📞</span><a href="tel:{{ $phoneTel }}">{{ $phoneDisplay }}</a></li>@endif
+                @if ($business->email)<li><span aria-hidden="true">✉️</span><a href="mailto:{{ $business->email }}">{{ $business->email }}</a></li>@endif
                 @if ($business->website_status === 'social_only' && $business->website_raw)
-                    <li><span>🔗</span><a href="{{ $business->website_raw }}" rel="noopener" target="_blank">Sosyal medya</a></li>
+                    <li><span aria-hidden="true">🔗</span><a href="{{ $business->website_raw }}" rel="noopener" target="_blank">Sosyal medya</a></li>
                 @endif
             </ul>
             @if (count($hours))
@@ -194,20 +166,40 @@
 </section>
 @endif
 
+</main>
+
 <footer class="footer">
     <div class="container footer-inner">
         <span>© {{ date('Y') }} {{ $business->name }}</span>
         <span>{{ $place }}</span>
         @if ($isPreview && $optOutToken)
-            <a href="{{ url('/u/'.$optOutToken) }}">Bu önizlemeyle ilgilenmiyorum</a>
+            <a class="optout-link" href="{{ url('/u/'.$optOutToken) }}">Bu önizlemeyle ilgilenmiyorum</a>
         @endif
     </div>
 </footer>
 
+@include('sites.sections.mobile-bar')
+
 @if ($whatsApp)
+    <aside aria-label="WhatsApp">
     <a class="wa-float" href="https://wa.me/{{ $whatsApp }}" aria-label="WhatsApp ile yazın">
         <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M16 3a13 13 0 0 0-11.2 19.6L3 29l6.6-1.7A13 13 0 1 0 16 3zm0 23.6c-2 0-4-.6-5.7-1.6l-.4-.2-3.9 1 1-3.8-.2-.4A10.6 10.6 0 1 1 16 26.6zm5.8-7.9c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2l-1 1.2c-.2.2-.4.2-.7.1a8.7 8.7 0 0 1-4.3-3.8c-.3-.6.3-.5.9-1.6.1-.2 0-.4 0-.5l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.2.2 2.1 3.2 5.1 4.5 1.9.8 2.6.9 3.6.7.6-.1 1.9-.8 2.1-1.5.3-.7.3-1.4.2-1.5-.1-.1-.3-.2-.6-.3z"/></svg>
     </a>
+    </aside>
 @endif
+<script>
+(function () {
+    var els = document.querySelectorAll('.section .container, .highlights .card, .banner-content, .cta-card');
+    els.forEach(function (e) { e.classList.add('reveal'); });
+    if (!('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        els.forEach(function (e) { e.classList.add('in'); });
+        return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
+    }, { threshold: 0.12 });
+    els.forEach(function (e) { io.observe(e); });
+})();
+</script>
 </body>
 </html>
