@@ -1,8 +1,23 @@
 # TODO ve devir notları
 
-Son güncelleme: 2026-11-22 · Dal: `claude/local-business-website-builder-rwkah5` (GitHub'a push edildi, erişim sorunu çözüldü)
+Son güncelleme: 2026-11-22 (gün sonu) · Dal: `claude/local-business-website-builder-rwkah5` (GitHub'a push edildi, çalışma ağacı temiz) · 46 test geçiyor
 
 Bu dosya, çalışmaya sonradan kaldığımız yerden devam edebilmek için **tüm notları** içerir: kararlar, yapılanlar, doğrulanmayanlar, açık işler, çalışma bilgileri.
+
+---
+
+## Bugünün özeti ve yarın nereden devam
+
+**Bugün biten:** Cloudflare bağlandı ve canlı doğrulandı (metin + görsel, neuron sayacı panelle birebir); şablonlar modernleştirildi ve erişilebilirlik taraması yapıldı; ücretsiz yapıya geçildi (Cloudflare Llama, Places kota koruması, Overture içe aktarma + doğrulama kapısı); API'siz tur (Satışlar 500 hatası düzeltildi, güvenlik sertleştirme, `leadgen:check`, DEPLOY/EMAIL rehberleri, üretim kopyası denemesi).
+
+**Yarın ilk iş (sırayla):**
+1. **Google Places:** Google Cloud'da proje, faturalandırma, "Places API (New)", kısıtlı API anahtarı, **günlük kota kapakları** (Text Search + Place Details), 1 $ bütçe uyarısı → bölüm 9-A. Hazır olunca "hazır" deyin; anahtarı sohbete yazmayın, güvenli formu açarım.
+2. Tek ilçe + tek sektörle küçük canlı arama; alan adları, `includedType`, SKU/kota sayacı doğrulaması → bölüm 9-B.
+3. Sonra: kalan şablonları gerçek görselle kontrol, cPanel'e gerçek dağıtım (`docs/DEPLOY.md`), SMTP + DNS (`docs/EMAIL.md`).
+
+**Yeni oturum açarken:** ortam olarak `coder` seçin (Cloudflare token'ı orada kayıtlı; `api.cloudflare.com` izinli). Places için aynı ortama `places.googleapis.com` eklenecek. Yerel demo DB'yi yeniden kurmak gerekirse: `LEADGEN_AI_PROVIDER=template CLOUDFLARE_ACCOUNT_ID= CLOUDFLARE_API_TOKEN= php artisan migrate:fresh --seed` ardından `db:seed --class=DemoSeeder` (anahtarsız; API çağırmaz).
+
+**Dikkat:** Cloudflare günlük ücretsiz havuz bugün ≈3,8k/10k kullanıldı, UTC 00:00'da sıfırlanır. Canlı denemeler neuron harcar; gereksiz yere yeniden üretim yapmayın.
 
 ---
 
